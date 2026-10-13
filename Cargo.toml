@@ -30,6 +30,7 @@ aws-config = "1"
 aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", "rustls", "default-https-client"] }
 
 kivo-time-tracking = { path = "crates/time-tracking" }
+kivo-leave-requests = { path = "crates/leave-requests" }
 kivo-onboarding = { path = "crates/onboarding" }
 kivo-tenancy = { path = "crates/tenancy" }
 kivo-planning = { path = "crates/planning" }

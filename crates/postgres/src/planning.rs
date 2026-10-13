@@ -143,6 +143,20 @@ async fn execute(pool: &PgPool, user: Uuid, c: Command, key: Option<Uuid>) -> Re
         {
             return Ok(());
         }
+        let absence = match &c {
+            Command::Absence(v) if v.version > 1 => Some(v.id),
+            Command::DeleteAbsence { id, .. } => Some(*id),
+            _ => None,
+        };
+        if let Some(id) = absence {
+            let approved: bool = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM leave_requests WHERE org_id=$1 AND absence_id=$2 AND status='approved')")
+                .bind(c.org_id()).bind(id).fetch_one(&mut *tx).await?;
+            if approved {
+                return Err(Error::Invalid(
+                    "Manage this approved absence through its leave request",
+                ));
+            }
+        }
         persist(&mut tx, &c).await?;
     }
     events::record(&mut tx, c.org_id(), user, c.entity_id(), c.action()).await?;

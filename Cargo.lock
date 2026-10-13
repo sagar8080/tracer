@@ -1849,6 +1849,7 @@ dependencies = [
  "kivo-auth0",
  "kivo-files",
  "kivo-identity",
+ "kivo-leave-requests",
  "kivo-object-storage-s3",
  "kivo-onboarding",
  "kivo-planning",
@@ -1900,6 +1901,18 @@ dependencies = [
  "chrono",
  "kivo-tenancy",
  "thiserror",
+]
+
+[[package]]
+name = "kivo-leave-requests"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-planning",
+ "kivo-tenancy",
+ "serde",
+ "thiserror",
+ "uuid",
 ]
 
 [[package]]
@@ -1960,6 +1973,7 @@ dependencies = [
  "chrono",
  "kivo-files",
  "kivo-identity",
+ "kivo-leave-requests",
  "kivo-onboarding",
  "kivo-planning",
  "kivo-realtime",

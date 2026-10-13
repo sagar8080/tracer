@@ -125,3 +125,16 @@ impl From<kivo_time_tracking::Error> for ApiError {
         }
     }
 }
+
+impl From<kivo_leave_requests::Error> for ApiError {
+    fn from(e: kivo_leave_requests::Error) -> Self {
+        match e {
+            kivo_leave_requests::Error::Forbidden => Self::Forbidden,
+            kivo_leave_requests::Error::Conflict => Self::Conflict,
+            kivo_leave_requests::Error::Invalid(m) => Self::Invalid(m),
+            kivo_leave_requests::Error::Unavailable => {
+                Self::Unavailable("This service is temporarily unavailable")
+            }
+        }
+    }
+}

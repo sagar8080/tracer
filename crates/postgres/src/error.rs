@@ -102,3 +102,21 @@ impl From<Error> for kivo_time_tracking::Error {
         }
     }
 }
+
+impl From<Error> for kivo_leave_requests::Error {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::Forbidden => Self::Forbidden,
+            Error::Conflict => Self::Conflict,
+            Error::Invalid(m) => Self::Invalid(m),
+            Error::NotFound => Self::Conflict,
+            Error::Database(e) => {
+                if constraint(e) {
+                    Self::Conflict
+                } else {
+                    Self::Unavailable
+                }
+            }
+        }
+    }
+}

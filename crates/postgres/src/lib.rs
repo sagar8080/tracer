@@ -4,6 +4,7 @@ mod error;
 mod events;
 mod files;
 mod identity;
+mod leave_requests;
 mod onboarding;
 mod planning;
 mod realtime;

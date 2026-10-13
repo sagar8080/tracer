@@ -2,6 +2,7 @@ mod auth;
 mod config;
 mod error;
 mod files;
+mod leave_requests;
 mod migration;
 mod onboarding;
 mod team;
@@ -201,6 +202,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/v1/organizations/{org}/time",
             get(time_tracking::read).post(time_tracking::write),
+        )
+        .route(
+            "/v1/organizations/{org}/leave",
+            get(leave_requests::read).post(leave_requests::write),
         )
         .route("/ready", get(ready))
         .route(
