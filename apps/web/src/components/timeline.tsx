@@ -460,7 +460,9 @@ export default function Timeline({
             })}
           {!people.length && (
             <div className="empty-timeline">
-              No people match this view. Add a person or clear your filters.
+              {canAdminister
+                ? "No people match this view. Add a scheduling profile in People or connect a member in Team access."
+                : "No people match this view. Clear your filters or ask a workspace administrator to add scheduling profiles."}
             </div>
           )}
         </div>

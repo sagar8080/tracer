@@ -13,7 +13,12 @@ export function SignIn() {
         <a className="primary" href="/auth/login">
           Sign in to Kivo <span aria-hidden="true">↗</span>
         </a>
-        <span className="identity-note">Your workspace is waiting.</span>
+        <a className="text-button" href="/auth/login?screen_hint=signup">
+          New to Kivo? Create an account
+        </a>
+        <span className="identity-note">
+          Joining a team? Use the email address you were invited with.
+        </span>
       </div>
     </main>
   );

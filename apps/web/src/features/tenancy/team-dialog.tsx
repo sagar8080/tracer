@@ -3,8 +3,16 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { X, Copy, UserPlus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { request } from "@/lib/http";
+import { MemberEnrollment } from "@/features/onboarding/member-enrollment";
+import type { Person } from "@/lib/model";
 import type { Role } from "./permissions";
-type Member = { userId: string; email: string; role: Role; version: number };
+type Member = {
+  userId: string;
+  email: string;
+  role: Role;
+  version: number;
+  personId: string | null;
+};
 type Invitation = { id: string; email: string; role: Role; expiresAt: string };
 type Team = { members: Member[]; invitations: Invitation[] };
 const roles: Role[] = ["owner", "admin", "planner", "member", "viewer"];
@@ -20,6 +28,7 @@ export function TeamDialog({
   revision,
   role,
   actorId,
+  people,
   onClose,
   onChanged,
 }: {
@@ -27,6 +36,7 @@ export function TeamDialog({
   revision: number;
   role: Role;
   actorId: string | null;
+  people: Person[];
   onClose: () => void;
   onChanged: () => Promise<void>;
 }) {
@@ -34,7 +44,7 @@ export function TeamDialog({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [email, setEmail] = useState(""),
-    [inviteRole, setInviteRole] = useState<Role>("planner"),
+    [inviteRole, setInviteRole] = useState<Role>("member"),
     [link, setLink] = useState(""),
     [notice, setNotice] = useState("");
   const path = `/api/organizations/${orgId}/team`;
@@ -97,7 +107,8 @@ export function TeamDialog({
             <div>
               <Dialog.Title>People with access</Dialog.Title>
               <Dialog.Description>
-                Invite your team and decide what they can manage.
+                Give teammates access, then add them to the schedule when
+                needed.
               </Dialog.Description>
             </div>
             <Dialog.Close
@@ -188,50 +199,71 @@ export function TeamDialog({
           ) : (
             <div className="team-list">
               {team.members.map((member) => (
-                <div className="team-row" key={member.userId}>
-                  <div className="team-person">
-                    <strong>{member.email}</strong>
-                    {member.userId === actorId && <small>You</small>}
-                  </div>
-                  <select
-                    aria-label={`Role for ${member.email}`}
-                    value={member.role}
-                    disabled={busy || !canManage(member.role)}
-                    onChange={(e) =>
-                      void mutate({
-                        kind: "changeRole",
-                        userId: member.userId,
-                        version: member.version,
-                        role: e.target.value,
-                      })
-                    }
-                  >
-                    {roles
-                      .filter((r) => canManage(r) || r === member.role)
-                      .map((r) => (
-                        <option key={r} value={r}>
-                          {r[0].toUpperCase() + r.slice(1)}
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    className="text-button"
-                    disabled={busy || !canManage(member.role)}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `Remove ${member.email} from this workspace?`,
-                        )
-                      )
+                <div className="team-member" key={member.userId}>
+                  <div className="team-row">
+                    <div className="team-person">
+                      <strong>{member.email}</strong>
+                      {member.userId === actorId && <small>You</small>}
+                    </div>
+                    <select
+                      aria-label={`Role for ${member.email}`}
+                      value={member.role}
+                      disabled={busy || !canManage(member.role)}
+                      onChange={(e) =>
                         void mutate({
-                          kind: "remove",
+                          kind: "changeRole",
                           userId: member.userId,
                           version: member.version,
-                        });
+                          role: e.target.value,
+                        })
+                      }
+                    >
+                      {roles
+                        .filter((r) => canManage(r) || r === member.role)
+                        .map((r) => (
+                          <option key={r} value={r}>
+                            {r[0].toUpperCase() + r.slice(1)}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      className="text-button"
+                      disabled={busy || !canManage(member.role)}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Remove ${member.email} from this workspace?`,
+                          )
+                        )
+                          void mutate({
+                            kind: "remove",
+                            userId: member.userId,
+                            version: member.version,
+                          });
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <MemberEnrollment
+                    orgId={orgId}
+                    userId={member.userId}
+                    email={member.email}
+                    version={member.version}
+                    personId={member.personId}
+                    people={people}
+                    linkedIds={
+                      new Set(
+                        team.members.flatMap((m) =>
+                          m.personId ? [m.personId] : [],
+                        ),
+                      )
+                    }
+                    onChanged={async () => {
+                      await onChanged();
+                      setTeam(await request<Team>(path));
                     }}
-                  >
-                    Remove
-                  </button>
+                  />
                 </div>
               ))}
               {!!team.invitations.length && <h3>Pending invitations</h3>}

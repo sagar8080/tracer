@@ -2635,3 +2635,114 @@ button:disabled {
 .project-row:disabled:hover {
   background: transparent;
 }
+
+/* Account setup and member enrollment share the Quiet Canvas surface. */
+.onboarding-content {
+  width: min(100%, 460px);
+}
+.onboarding-options,
+.onboarding-invitations,
+.onboarding-form {
+  width: 100%;
+}
+.onboarding-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  text-align: left;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--ink);
+}
+.onboarding-option:hover {
+  color: var(--accent);
+}
+.onboarding-option span {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+}
+.onboarding-option strong {
+  font-size: 14px;
+  font-weight: 500;
+}
+.onboarding-option small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.onboarding-options > .text-button {
+  margin-top: 20px;
+}
+.onboarding-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.onboarding-form label,
+.enrollment-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.onboarding-form input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--sidebar);
+  color: var(--ink);
+  font: inherit;
+}
+.onboarding-form .primary {
+  align-self: flex-start;
+}
+.onboarding-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 12px;
+}
+.team-member {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.team-member .team-row {
+  border-bottom: 0;
+  padding-bottom: 8px;
+}
+.enrollment-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.enrollment-summary .text-button {
+  font-size: 11px;
+}
+.enrollment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0 4px;
+}
+.enrollment-form p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.enrollment-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+}
+.member-enrollment .error {
+  margin-top: 8px;
+}

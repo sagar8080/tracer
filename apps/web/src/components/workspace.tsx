@@ -59,6 +59,7 @@ import Editor, {
 import Timeline from "./timeline";
 import CapacityView from "./capacity-view";
 import { permissions, mayEdit } from "@/features/tenancy/permissions";
+import { Welcome } from "@/features/onboarding/welcome";
 import { TeamDialog } from "@/features/tenancy/team-dialog";
 import { useLiveWorkspace } from "@/features/realtime/use-live-workspace";
 import { ApiError } from "@/lib/http";
@@ -85,9 +86,14 @@ export default function Workspace({ account }: { account?: string }) {
   const [help, setHelp] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [teamOpen, setTeamOpen] = useState(false);
+  const [onboarding, setOnboarding] = useState(false);
   const access = permissions(data, orgId, isRemote);
   function setEditor(value: EditorState | null) {
     if (value && !mayEdit(value, access)) return;
+    if (isRemote && value?.kind === "organization" && !value.value.id) {
+      setOnboarding(true);
+      return;
+    }
     setError("");
     setEditorState(value);
   }
@@ -168,6 +174,7 @@ export default function Workspace({ account }: { account?: string }) {
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (onboarding || !data?.organizations.length) return;
       const input =
         e.target instanceof HTMLElement &&
         ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName);
@@ -435,6 +442,20 @@ export default function Workspace({ account }: { account?: string }) {
         )}
       </div>
     );
+  if (isRemote && (!data.organizations.length || onboarding))
+    return (
+      <Welcome
+        account={account}
+        onCancel={
+          data.organizations.length ? () => setOnboarding(false) : undefined
+        }
+        onComplete={async (id) => {
+          await refreshWorkspace();
+          setOrgId(id);
+          setOnboarding(false);
+        }}
+      />
+    );
   if (!data.organizations.length)
     return (
       <div className="loading">
@@ -472,6 +493,7 @@ export default function Workspace({ account }: { account?: string }) {
             revision={data.access.find((a) => a.orgId === orgId)?.revision ?? 0}
             role={access.role}
             actorId={data.actorId}
+            people={allPeople}
             onClose={() => setTeamOpen(false)}
             onChanged={refreshWorkspace}
           />
@@ -1118,7 +1140,13 @@ export default function Workspace({ account }: { account?: string }) {
                 <div className="empty-state">
                   <Users size={28} />
                   <h2>No people yet</h2>
-                  <p>Add your first person, or clear the current filters.</p>
+                  <p>
+                    {allPeople.length
+                      ? "Clear your filters to see your people."
+                      : access.administer
+                        ? "Add a scheduling profile or add someone with workspace access to the schedule."
+                        : "Your workspace administrator can add people to the schedule. Your invitation gives you access to this workspace."}
+                  </p>
                   <button
                     className="primary"
                     disabled={
@@ -1128,6 +1156,14 @@ export default function Workspace({ account }: { account?: string }) {
                   >
                     Add person
                   </button>
+                  {isRemote && access.administer && !allPeople.length && (
+                    <button
+                      className="text-button"
+                      onClick={() => setTeamOpen(true)}
+                    >
+                      Add someone with access
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1280,6 +1316,7 @@ export default function Workspace({ account }: { account?: string }) {
             revision={data.access.find((a) => a.orgId === orgId)?.revision ?? 0}
             role={access.role}
             actorId={data.actorId}
+            people={allPeople}
             onClose={() => setTeamOpen(false)}
             onChanged={refreshWorkspace}
           />
