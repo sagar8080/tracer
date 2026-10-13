@@ -28,7 +28,7 @@ pub(super) async fn replay(
     key: Uuid,
     request: &Value,
 ) -> Result<Option<Value>, Error> {
-    let saved:Option<(Value,Value)>=sqlx::query_as("SELECT request,result FROM command_receipts WHERE org_id=$1 AND actor_id=$2 AND request_id=$3").bind(org).bind(actor).bind(key).fetch_optional(&mut **tx).await?;
+    let saved:Option<(Value,Value)>=sqlx::query_as("SELECT request,result FROM command_receipts WHERE org_id=$1 AND actor_principal_id=$2 AND request_id=$3").bind(org).bind(actor).bind(key).fetch_optional(&mut **tx).await?;
     match saved {
         Some((original, result)) if original == *request => Ok(Some(result)),
         Some(_) => Err(Error::Conflict),
@@ -43,7 +43,7 @@ pub(super) async fn receipt(
     request: &Value,
     result: &Value,
 ) -> Result<(), Error> {
-    sqlx::query("INSERT INTO command_receipts(org_id,actor_id,request_id,request,result) VALUES($1,$2,$3,$4,$5)").bind(org).bind(actor).bind(key).bind(request).bind(result).execute(&mut **tx).await?;
+    sqlx::query("INSERT INTO command_receipts(org_id,actor_id,actor_principal_id,request_id,request,result) VALUES($1,(SELECT user_id FROM principals WHERE id=$2),$2,$3,$4,$5)").bind(org).bind(actor).bind(key).bind(request).bind(result).execute(&mut **tx).await?;
     Ok(())
 }
 pub(super) async fn record(
@@ -53,7 +53,7 @@ pub(super) async fn record(
     entity: Uuid,
     kind: &str,
 ) -> Result<(), Error> {
-    sqlx::query("INSERT INTO audit_events(org_id,actor_id,entity_id,action) VALUES($1,$2,$3,$4)")
+    sqlx::query("INSERT INTO audit_events(org_id,actor_id,actor_principal_id,entity_id,action) VALUES($1,(SELECT user_id FROM principals WHERE id=$2),$2,$3,$4)")
         .bind(org)
         .bind(actor)
         .bind(entity)

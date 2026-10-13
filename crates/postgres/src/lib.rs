@@ -1,4 +1,6 @@
 //! PostgreSQL adapters: SQL, pool ownership, locked authorization and audit writes.
+mod agent_runtime;
+mod agents;
 mod connection;
 mod error;
 mod events;

@@ -1,5 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub(super) enum Error {
+    #[error("Authentication required")]
+    Unauthorized,
     #[error("Permission denied")]
     Forbidden,
     #[error("Version conflict")]
@@ -21,7 +23,7 @@ fn constraint(error: sqlx::Error) -> bool {
 impl From<Error> for kivo_planning::Error {
     fn from(error: Error) -> Self {
         match error {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict | Error::NotFound => Self::Conflict,
             Error::Invalid(message) => Self::Invalid(message),
             Error::Database(error) => Self::Persistence {
@@ -33,7 +35,7 @@ impl From<Error> for kivo_planning::Error {
 impl From<Error> for kivo_files::Error {
     fn from(error: Error) -> Self {
         match error {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::NotFound => Self::NotFound,
             Error::Invalid(message) => Self::Invalid(message),
             Error::Conflict => Self::Conflict,
@@ -46,7 +48,7 @@ impl From<Error> for kivo_files::Error {
 impl From<Error> for kivo_tenancy::Error {
     fn from(e: Error) -> Self {
         match e {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict | Error::NotFound => Self::Conflict,
             Error::Invalid(m) => Self::Invalid(m),
             Error::Database(e) => {
@@ -71,7 +73,7 @@ impl From<Error> for kivo_realtime::Error {
 impl From<Error> for kivo_onboarding::Error {
     fn from(e: Error) -> Self {
         match e {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict | Error::NotFound => Self::Conflict,
             Error::Invalid(m) => Self::Invalid(m),
             Error::Database(e) => {
@@ -88,7 +90,7 @@ impl From<Error> for kivo_onboarding::Error {
 impl From<Error> for kivo_time_tracking::Error {
     fn from(e: Error) -> Self {
         match e {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict => Self::Conflict,
             Error::Invalid(m) => Self::Invalid(m),
             Error::NotFound => Self::Conflict,
@@ -106,7 +108,7 @@ impl From<Error> for kivo_time_tracking::Error {
 impl From<Error> for kivo_leave_requests::Error {
     fn from(e: Error) -> Self {
         match e {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict => Self::Conflict,
             Error::Invalid(m) => Self::Invalid(m),
             Error::NotFound => Self::Conflict,
@@ -124,10 +126,28 @@ impl From<Error> for kivo_leave_requests::Error {
 impl From<Error> for kivo_reporting::Error {
     fn from(e: Error) -> Self {
         match e {
-            Error::Forbidden => Self::Forbidden,
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
             Error::Conflict => Self::Conflict,
             Error::Invalid(m) => Self::Invalid(m),
             Error::NotFound => Self::Conflict,
+            Error::Database(e) => {
+                if constraint(e) {
+                    Self::Conflict
+                } else {
+                    Self::Unavailable
+                }
+            }
+        }
+    }
+}
+
+impl From<Error> for kivo_agents::Error {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::Unauthorized => Self::Unauthorized,
+            Error::Forbidden => Self::Forbidden,
+            Error::Conflict | Error::NotFound => Self::Conflict,
+            Error::Invalid(m) => Self::Invalid(m),
             Error::Database(e) => {
                 if constraint(e) {
                     Self::Conflict
