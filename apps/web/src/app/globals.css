@@ -3143,3 +3143,34 @@ button:disabled {
 .time-entry-table td:first-child {
   white-space: nowrap;
 }
+
+.agent-list { border-top: 1px solid var(--line); }
+.agent-row, .agent-proposal-row { display: flex; align-items: center; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.agent-row > div:first-of-type, .agent-proposal-row > div { flex: 1; min-width: 0; }
+.agent-row strong, .agent-proposal-row strong { font-size: 13px; font-weight: 500; }
+.agent-row p, .agent-proposal-row p { color: var(--muted); margin: 5px 0; font-size: 12px; overflow-wrap: anywhere; }
+.agent-row span, .agent-proposal-row span { font-size: 11px; color: var(--muted); }
+.agent-row-actions { display: flex; gap: 8px; }
+.agent-proposal-row { width: 100%; background: transparent; border-top: 0; border-left: 0; border-right: 0; text-align: left; color: var(--ink); cursor: pointer; }
+.agent-proposal-row:hover { background: var(--line); }
+.agent-credential { padding: 12px 0 20px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+.agent-credential > span { flex-basis: 100%; }
+.agent-credential input { flex: 1; min-width: 120px; color: var(--ink); background: transparent; border: 1px solid var(--line-strong); padding: 8px; border-radius: 5px; }
+.agent-projects { border: 0; padding: 12px 0; margin: 0; max-height: 180px; overflow: auto; }
+.agent-projects legend { font-size: 12px; color: var(--muted); }
+.agent-check { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 12px; }
+.agent-check input { accent-color: var(--action); }
+.agent-reason { font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; margin-bottom: 20px; }
+@media (max-width: 600px) {
+  .agent-row { flex-wrap: wrap; gap: 12px; }
+  .agent-row-actions { flex-basis: 100%; }
+  .agent-proposal-row { gap: 8px; }
+  .agent-credential button { flex: 1; }
+}
+.agent-property { display: flex; gap: 16px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.agent-property > :first-child { flex: 0 0 100px; color: var(--muted); }
+.agent-property > :last-child { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.feature-form .agent-property { padding: 0; border: 0; }
+.feature-form .agent-check { flex-direction: row; align-items: center; }
+.feature-form .agent-check input { width: 16px; height: 16px; padding: 0; }
+.feature-subheading > div > span { color: var(--muted); font-size: 12px; }
