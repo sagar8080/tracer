@@ -1,5 +1,11 @@
 # Kivo project guidance
 
+## Product iteration planning
+
+The canonical feature and delivery plan is [docs/product-design.md](docs/product-design.md), with traceable requirements in [docs/feature-parity.md](docs/feature-parity.md). [docs/agentic-system-design.md](docs/agentic-system-design.md) defines product workflows for humans and agents and the early A0–A4 adoption cycles. Before implementing a product change, identify its cycle, requirement IDs, user journey, owning capability/frontend module, schema/API contract, transaction boundary and acceptance checks. Update the plan/register together when scope or dependencies change. Preserve existing functionality and record actual validation in `docs/validation.md`; planned scope must never be presented as implemented. New capability/process crates are introduced with their first real workflow, not as empty roadmap scaffolding.
+
+Product agents have distinct principals and scoped delegations. Humans and agents use the same typed business contracts; agent effects also require current authority/policy, source versions, budgets and cancellation fences in the atomic mutation boundary. Source text/model output cannot grant authority. Keep operating-agent identity separate from scheduled resource identity, and human calendar minutes separate from agent execution slots/usage. Autonomy within an explicitly granted policy does not require a new human approval for every step; exceptions escalate. This describes Kivo product behavior, not permission to run development subagents or send external messages.
+
 ## Architecture and separation of concerns
 
 The canonical architecture plan is [docs/architecture.md](docs/architecture.md#crate-and-process-boundaries). Read it before adding a backend capability or changing a process boundary.
@@ -14,7 +20,7 @@ The canonical architecture plan is [docs/architecture.md](docs/architecture.md#c
 - Frontend feature modules follow the same ownership boundaries: components render and collect input, domain modules calculate/validate, and storage adapters perform I/O. Share the Quiet Canvas primitives without growing a catch-all workspace/editor component for every feature.
 - Before implementing a feature, identify its owning crate/module, public contract, data owner and transaction boundary. Update the architecture plan when those boundaries change. Prove adapter semantics with focused contract/integration tests rather than adding abstraction without a consumer.
 
-The backend now uses the root Cargo workspace: `apps/api`, `apps/migrator` and `apps/realtime` compose the thirteen library crates under `crates/`. Run `npm run check:boundaries` and `cargo test --locked --workspace` when changing crate contracts. Migration SQL lives in `apps/migrator/migrations`; never edit an applied migration. Create future executable crates when their process is actually built, with no empty service scaffolding.
+The backend now uses the root Cargo workspace: `apps/api`, `apps/migrator` and `apps/realtime` compose the fifteen library crates under `crates/`. A0 adds `kivo-agents` for registry contracts and `kivo-agent-runtime` for bounded tools, pure move/capacity evaluation and inert proposal lifecycle. Run `npm run check:boundaries` and `cargo test --locked --workspace` when changing crate contracts. Migration SQL lives in `apps/migrator/migrations`; never edit an applied migration. Create future executable crates when their process is actually built, with no empty service scaffolding.
 
 ## Product design
 
