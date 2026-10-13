@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID, randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 import WebSocket from "ws";
+import { verifySelfService } from "./test-self-service.mjs";
 import { verifyOnboarding } from "./test-onboarding.mjs";
 import { auth0Fixture } from "./auth0-fixture.mjs";
 import { runMigrator } from "./test-migrations.mjs";
@@ -553,6 +554,13 @@ try {
     "PASS: expired subscription credentials, token-limited connections, concurrent project versions and concurrent last-owner protection.",
   );
   await verifyOnboarding({ expect, request, save, fixture, client });
+  const selfService = await verifySelfService({
+    expect,
+    request,
+    save,
+    fixture,
+    client,
+  });
   // Leave a useful fixture for manual desktop/mobile verification when requested.
   if (process.env.KIVO_BROWSER_QA === "1") {
     await invite(org.id, "grace", "viewer");
