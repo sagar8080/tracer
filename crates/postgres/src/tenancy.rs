@@ -32,7 +32,7 @@ pub(super) async fn require(
 }
 impl DevelopmentIdentity for Postgres {
     async fn ensure_development_actor(&self, actor: Actor) -> Result<(), IdentityError> {
-        sqlx::query("INSERT INTO users(id,email) VALUES($1,$2) ON CONFLICT(id) DO NOTHING")
+        sqlx::query("INSERT INTO users(id,email,email_verified) VALUES($1,$2,true) ON CONFLICT(id) DO UPDATE SET email_verified=true WHERE NOT EXISTS (SELECT 1 FROM external_identities WHERE user_id=$1)")
             .bind(actor.user_id)
             .bind(format!("{}@local.invalid", actor.user_id))
             .execute(&self.pool)
@@ -43,4 +43,21 @@ impl DevelopmentIdentity for Postgres {
             })?;
         Ok(())
     }
+}
+
+pub(super) async fn require_verified(
+    tx: &mut Transaction<'_, sqlx::Postgres>,
+    actor: Actor,
+) -> Result<(), Error> {
+    let verified: bool =
+        sqlx::query_scalar("SELECT email_verified FROM users WHERE id=$1 FOR SHARE")
+            .bind(actor.user_id)
+            .fetch_one(&mut **tx)
+            .await?;
+    if !verified {
+        return Err(Error::Invalid(
+            "Verify your email address before creating a workspace",
+        ));
+    }
+    Ok(())
 }

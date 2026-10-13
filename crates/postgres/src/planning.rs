@@ -100,6 +100,7 @@ async fn execute(pool: &PgPool, user: Uuid, c: Command, key: Option<Uuid>) -> Re
     if let Command::Organization(v) = &c
         && role.is_none()
     {
+        tenancy::require_verified(&mut tx, Actor { user_id: user }).await?;
         if v.version != 1 {
             return Err(Error::Conflict);
         }
