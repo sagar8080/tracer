@@ -111,9 +111,10 @@ export async function verifyProviders({
   org,
   org2,
   hiddenOrg,
+  apiBase = "http://127.0.0.1:4000",
 }) {
   const api = async (path, method = "POST", body, authenticated = true, key) =>
-    fetch(`http://127.0.0.1:4000${path}`, {
+    fetch(`${apiBase}${path}`, {
       method,
       headers: {
         "Content-Type": "application/json",

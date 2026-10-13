@@ -2,7 +2,11 @@
 // It never connects to Auth0 and accepts only the isolated test application's URLs.
 import { createServer } from "node:http";
 import { generateKeyPairSync, sign, createHash, randomUUID } from "node:crypto";
-export async function auth0Fixture() {
+export async function auth0Fixture({
+  webOrigin = "http://127.0.0.1:3000",
+} = {}) {
+  if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(webOrigin))
+    throw Error("Fixture origin must be loopback");
   const issuer = "http://localhost:4455/",
     audience = "https://kivo.test/api",
     clientId = "kivo-fixture-client",
@@ -103,7 +107,7 @@ export async function auth0Fixture() {
       const params = url.searchParams;
       if (
         params.get("client_id") !== clientId ||
-        params.get("redirect_uri") !== "http://127.0.0.1:3000/auth/callback" ||
+        params.get("redirect_uri") !== `${webOrigin}/auth/callback` ||
         params.get("audience") !== audience
       )
         return json(res, { error: "invalid_request" }, 400);
@@ -192,7 +196,7 @@ export async function auth0Fixture() {
       });
     }
     if (url.pathname === "/oidc/logout") {
-      res.writeHead(302, { Location: "http://127.0.0.1:3000/" });
+      res.writeHead(302, { Location: `${webOrigin}/` });
       res.end();
       return;
     }

@@ -1,12 +1,13 @@
 import EmbeddedPostgres from "embedded-postgres";
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, cp, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID, randomBytes } from "node:crypto";
 import assert from "node:assert/strict";
 import WebSocket from "ws";
+import { verifyAgents, verifyAgentUpgrade } from "./test-agents.mjs";
 import { verifySelfService } from "./test-self-service.mjs";
 import { verifyOnboarding } from "./test-onboarding.mjs";
 import { auth0Fixture } from "./auth0-fixture.mjs";
@@ -34,6 +35,11 @@ const pg = new EmbeddedPostgres({
 });
 const processes = [],
   sockets = [];
+const webPort = process.env.KIVO_QA_WEB_PORT ?? "3000";
+assert.ok(
+  /^\d+$/.test(webPort) && Number(webPort) >= 1024 && Number(webPort) <= 65535,
+);
+const webOrigin = `http://127.0.0.1:${webPort}`;
 let fixture, client;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let log = "";
@@ -153,7 +159,7 @@ try {
       code === 0 ? resolve() : reject(Error(`Build failed ${code}`)),
     );
   });
-  fixture = await auth0Fixture();
+  fixture = await auth0Fixture({ webOrigin });
   await pg.initialise();
   await pg.start();
   await pg.createDatabase("kivo");
@@ -172,6 +178,7 @@ try {
     KIVO_WEB_ORIGIN: "http://127.0.0.1:3000",
     RUST_LOG: "warn",
   };
+  await verifyAgentUpgrade({ root, client, target, env });
   const migration = await runMigrator(target, env);
   assert.equal(migration.code, 0, migration.output);
   const api = start(join(target, "debug/kivo-api"), env);
@@ -561,6 +568,7 @@ try {
     fixture,
     client,
   });
+  await verifyAgents({ expect, request, save, client, fixture });
   // Leave a useful fixture for manual desktop/mobile verification when requested.
   if (process.env.KIVO_BROWSER_QA === "1") {
     await invite(org.id, "grace", "viewer");
@@ -577,6 +585,21 @@ try {
       name: "Olivia Chen",
       version: currentPerson.version + 1,
     });
+    for (const socket of sockets) socket.terminate();
+    live.kill("SIGINT");
+    await Promise.race([
+      new Promise((resolve) => live.once("exit", resolve)),
+      sleep(4000),
+    ]);
+    if (live.exitCode === null) {
+      live.kill("SIGKILL");
+      await new Promise((resolve) => live.once("exit", resolve));
+    }
+    const qaLive = start(join(target, "debug/kivo-realtime-server"), {
+      ...env,
+      KIVO_WEB_ORIGIN: webOrigin,
+    });
+    await waitFor("http://127.0.0.1:4101/health", qaLive);
     const webEnv = {
       ...baseEnv,
       KIVO_AUTH_MODE: "auth0",
@@ -586,23 +609,37 @@ try {
       AUTH0_CLIENT_SECRET: fixture.clientSecret,
       AUTH0_SECRET: randomBytes(32).toString("hex"),
       AUTH0_AUDIENCE: fixture.audience,
-      APP_BASE_URL: "http://127.0.0.1:3000",
+      APP_BASE_URL: webOrigin,
       KIVO_API_URL: "http://127.0.0.1:4100",
       NEXT_PUBLIC_STORAGE_MODE: "api",
       NEXT_PUBLIC_REALTIME_URL: "ws://127.0.0.1:4101/ws",
     };
+    const webFolder = join(root, "output", "agent-web-qa");
+    await rm(webFolder, { recursive: true, force: true });
+    await mkdir(webFolder, { recursive: true });
+    for (const item of [
+      "src",
+      "next.config.ts",
+      "postcss.config.mjs",
+      "tsconfig.json",
+      "package.json",
+      "next-env.d.ts",
+    ])
+      await cp(join(root, "apps/web", item), join(webFolder, item), {
+        recursive: true,
+      });
     const web = start(process.execPath, { ...webEnv }, [
       join(root, "node_modules/next/dist/bin/next"),
       "dev",
-      join(root, "apps/web"),
+      webFolder,
       "--hostname",
       "127.0.0.1",
       "--port",
-      "3000",
+      webPort,
     ]);
-    await waitFor("http://127.0.0.1:3000/", web);
+    await waitFor(`${webOrigin}/`, web);
     console.log(
-      "READY: isolated Auth0 browser QA at http://127.0.0.1:3000 (alice owner, bob planner, carol admin; no cloud credentials). Ctrl+C to clean up.",
+      `READY: isolated Auth0 browser QA at ${webOrigin} (ian owner, liam planner, kelly viewer; no cloud credentials). Ctrl+C to clean up.`,
     );
     await new Promise((resolve) => process.once("SIGINT", resolve));
   }

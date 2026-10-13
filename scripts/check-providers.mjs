@@ -19,8 +19,11 @@ if (!token)
       ? "Set KIVO_CHECK_ACCESS_TOKEN to a current Auth0 API access token in the shell"
       : "Set KIVO_DEV_TOKEN in apps/api/.env or the shell",
   );
+const bind = process.env.KIVO_API_BIND ?? "127.0.0.1:4000";
+if (!/^(127\.0\.0\.1|localhost):\d+$/.test(bind))
+  throw Error("Provider checks require a loopback API bind");
 try {
-  const response = await fetch("http://127.0.0.1:4000/ready", {
+  const response = await fetch(`http://${bind}/ready`, {
     headers: { Authorization: `Bearer ${token}` },
     signal: AbortSignal.timeout(15_000),
   });
@@ -33,7 +36,7 @@ try {
     process.exitCode = 1;
 } catch {
   console.error(
-    "Could not check providers. Start the API on port 4000 and verify its configuration.",
+    "Could not check providers. Start the configured API and verify its connection settings.",
   );
   process.exitCode = 1;
 }

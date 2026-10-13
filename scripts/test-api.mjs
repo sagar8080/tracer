@@ -11,12 +11,18 @@ import { verifyMigrationUpgrade, runMigrator } from "./test-migrations.mjs";
 import { verifyCapacity } from "./test-capacity.mjs";
 import { fileURLToPath } from "node:url";
 const providers = process.argv.includes("--providers");
+const apiPort = Number(process.env.KIVO_TEST_API_PORT ?? 4000);
+assert.ok(Number.isInteger(apiPort) && apiPort >= 1024 && apiPort <= 65535);
+const apiBase = `http://127.0.0.1:${apiPort}`;
 const root = fileURLToPath(new URL("../", import.meta.url));
 const target = join(root, "target");
 // Do not inherit developer cloud credentials, provider URLs or a local dotenv file.
 const testEnv = Object.fromEntries(
   Object.entries(process.env).filter(
-    ([key]) => !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(key),
+    ([key]) =>
+      !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(
+        key,
+      ),
   ),
 );
 testEnv.CARGO_TARGET_DIR = target;
@@ -37,7 +43,7 @@ let web;
 let fixture;
 const token = randomBytes(32).toString("hex");
 async function request(method, body, authorized = true) {
-  return fetch("http://127.0.0.1:4000/v1/workspace", {
+  return fetch(`${apiBase}/v1/workspace`, {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -69,6 +75,7 @@ try {
     ...testEnv,
     ...fixture?.env,
     KIVO_LOAD_ENV: "0",
+    KIVO_API_BIND: `127.0.0.1:${apiPort}`,
     DATABASE_URL: "postgres://kivo:local-test-only@127.0.0.1:55432/kivo",
     KIVO_ALLOW_DEV_AUTH: "1",
     KIVO_DEV_TOKEN: token,
@@ -240,9 +247,17 @@ try {
     hiddenOrg,
   });
   if (providers)
-    await verifyProviders({ fixture, token, client, org, org2, hiddenOrg });
+    await verifyProviders({
+      fixture,
+      token,
+      client,
+      org,
+      org2,
+      hiddenOrg,
+      apiBase,
+    });
   else {
-    const ready = await fetch("http://127.0.0.1:4000/ready", {
+    const ready = await fetch(`${apiBase}/ready`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     assert.equal(ready.status, 200);
@@ -252,7 +267,7 @@ try {
       s3: "disabled",
     });
     const unavailable = await fetch(
-      `http://127.0.0.1:4000/v1/organizations/${org.id}/files`,
+      `${apiBase}/v1/organizations/${org.id}/files`,
       {
         method: "POST",
         headers: {
