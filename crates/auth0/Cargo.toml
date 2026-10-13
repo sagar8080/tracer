@@ -1,0 +1,17 @@
+[package]
+name = "kivo-auth0"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+[lints]
+workspace = true
+[dependencies]
+kivo-identity.workspace = true
+chrono.workspace = true
+reqwest.workspace = true
+serde.workspace = true
+jsonwebtoken.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+url.workspace = true
+serde_json.workspace = true

@@ -1,0 +1,18 @@
+[package]
+name = "kivo-object-storage-s3"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+kivo-files.workspace = true
+aws-config.workspace = true
+aws-sdk-s3.workspace = true
+url.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
