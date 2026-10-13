@@ -1,6 +1,6 @@
 # Kivo architecture and data model
 
-Kivo runs a Next.js browser application and an Axum backend against PostgreSQL. The backend is a Cargo workspace with eight crates: two independent executables, three capability libraries, and three infrastructure libraries. Shared code is linked through explicit library contracts; runtime processes can be deployed and scaled independently as they are introduced. The browser-local demo is a separate storage adapter, explicitly labeled and not shared storage or authentication.
+Kivo runs a Next.js browser application and an Axum backend against PostgreSQL. The backend is a Cargo workspace with eighteen crates: three independent executables and fifteen capability/provider libraries. Shared code is linked through explicit library contracts; runtime processes can be deployed and scaled independently as they are introduced. The browser-local demo is a separate storage adapter, explicitly labeled and not shared storage or authentication. Future capability boundaries and delivery dependencies are defined in the [product design and iteration plan](product-design.md); this document records implemented architecture and its current limits.
 
 ## Crate and process boundaries
 
@@ -15,6 +15,7 @@ Each independently runnable process gets its own executable crate. Its entrypoin
 | `apps/api` / `kivo-api` | HTTP transport, verified request context, routing, DTO mapping and dependency composition. | Implemented; thin HTTP handlers and composition. |
 | `apps/migrator` / `kivo-migrator` | Apply the ordered schema migrations through Neon's direct connection and exit with a meaningful status. | Implemented; owns the unchanged ordered SQL stream. |
 | `apps/worker` / `kivo-worker` | Execute durable background jobs, exports and cleanup with bounded concurrency, retries and idempotency. | Introduce with the first durable background workflow. |
+| `apps/agent-runner` / `kivo-agent-runner` | Execute durable agent runs/steps with scoped tools, budgets, cancellation fences and verified outcomes. | Planned; introduce with the first built-in durable agent workflow in A1/A2. |
 | `apps/realtime` / `kivo-realtime-server` | Authorize subscriptions, deliver committed changes, apply backpressure and recover missed revisions. | Implemented; single-use subscription tickets, bounded delivery and durable per-tenant replay. |
 
 A task with a distinct deployment, credential boundary or scaling profile receives another executable crate when implemented. For example, a high-volume connector can run separately from file cleanup. An async function or ordinary business workflow does not automatically require a new process. Distinct processes never share mutable in-process state as their correctness mechanism.
@@ -26,6 +27,8 @@ These library crates contain the responsibilities implemented today. Future work
 | Library crate | Owns | Public boundary / dependencies |
 | --- | --- | --- |
 | `crates/tenancy` / `kivo-tenancy` | Organization and membership types, actor context and role-policy decisions. | Typed tenant/actor context and access decisions; no HTTP or provider SDKs. Identity remains a separate capability. |
+| `crates/agents` / `kivo-agents` | Agent registry, versioned definition, one-time credential/session contracts and atomic persistence ports. | Depends on tenancy and value types; no SQL, inference or transport. |
+| `crates/agent-runtime` / `kivo-agent-runtime` | Bounded schedule/capacity queries, pure move/impact evaluation, inert proposal lifecycle and atomic persistence ports. | Depends on agents, tenancy and planning contracts; no model, SQL or HTTP. Durable runs are future work. |
 | `crates/time-tracking` / `kivo-time-tracking` | Member time ownership, weekly submission states, entry validation and approval rules. | Atomic repository port; depends on tenancy, with no SQL/HTTP types. |
 | `crates/leave-requests` / `kivo-leave-requests` | Member leave request and approval workflows. | Atomic repository port; depends on tenancy and planning contracts. Approved absence and review commit together. |
 | `crates/reporting` / `kivo-reporting` | Hour-based planned/actual aggregates and calendar-aware capacity. | Pure calculations and snapshot repository port; depends on tenancy, planning and time-tracking value types. |
@@ -35,7 +38,7 @@ These library crates contain the responsibilities implemented today. Future work
 | `crates/realtime` / `kivo-realtime` | Ticket and authorized committed-event replay contracts. | Pure ports; PostgreSQL implements durable storage. |
 | `crates/planning` / `kivo-planning` | People, projects, allocations, working calendars, leave, capacity rules and planning use cases. | Typed planning commands, results and atomic persistence ports. Internally separate people/projects/scheduling/capacity modules; depends on tenancy contracts. |
 | `crates/files` / `kivo-files` | File reservation, completion and download use cases; metadata and object-store contracts. | Typed file lifecycle operations and storage capabilities; depends on tenancy contracts. |
-| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, onboarding, planning, time tracking, leave, reporting, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
+| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, agents, agent tools/proposals, onboarding, planning, time tracking, leave, reporting, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
 | `crates/rate-limit` / `kivo-rate-limit` | Rate-limit port, explicit allow/deny/unavailable outcomes, and Upstash REST implementation in a separate adapter module. | No authorization authority or scheduling locks. Its small stable interface is consumed by the HTTP process. Split additional adapters into their own crates when introduced. |
 | `crates/object-storage-s3` / `kivo-object-storage-s3` | Neon S3 endpoint configuration, signing, object verification and storage client lifecycle. | Implements the file capability's object-store port; provider SDK types remain private. |
 
@@ -45,6 +48,8 @@ Keep the dependency direction explicit:
 
 ```text
 kivo-planning ────────────────> kivo-tenancy
+kivo-agents ────────────────> tenancy principal/scope contracts
+kivo-agent-runtime ─────────> agents / tenancy / planning contracts
 kivo-files ───────────────────> kivo-tenancy
 kivo-onboarding ─────────────> tenancy / planning contracts
 kivo-time-tracking ──────────> tenancy contracts
@@ -98,7 +103,7 @@ Feature modules under `apps/web/src/features/identity`, `tenancy`, and `realtime
 
 The extraction is implemented in the five steps below. The evidence and remaining product limitations are recorded in [validation](validation.md#crate-extraction-verification).
 
-1. **Workspace and pure rules.** One root Cargo workspace, lockfile and lint policy govern all eight packages. Tenancy owns actor/role policy; planning owns commands and validation. Persistence derives remain on Postgres row types. The metadata boundary check rejects cycles and forbidden dependencies.
+1. **Workspace and pure rules.** The initial extraction placed eight packages under one root Cargo workspace, lockfile and lint policy; later capabilities expanded this to eighteen. Tenancy owns actor/role policy; planning owns commands and validation. Persistence derives remain on Postgres row types. The metadata boundary check rejects cycles and forbidden dependencies.
 2. **Atomic PostgreSQL ports.** Capability-owned repository traits express whole transactions. The adapter retains one repeatable-read workspace snapshot and locked authorization/version/mutation/audit writes. Real PostgreSQL integration tests cover tenant isolation, concurrent edits, calendar-aware validation and exact audit counts.
 3. **Providers and file use cases.** File workflows live in `kivo-files`, S3 implements its object-store port, and Upstash implements the rate-limit port. Thin HTTP handlers translate DTOs and errors. Replacement-port workflow tests and local provider fixtures verify error propagation, private-file lifecycle and readiness behavior.
 4. **Dedicated migrator and process wiring.** Migration execution and unchanged SQL live in `apps/migrator`. The API's local compatibility launcher starts that separate binary and fails if it cannot complete. The upgrade test seeds an existing v2 database, preserves its records/ledger, applies v3, reruns idempotently, and rejects checksum drift. No live cloud writes were repeated for extraction.
@@ -107,6 +112,14 @@ The extraction is implemented in the five steps below. The evidence and remainin
 For later processes, add operational gates as they are built: independent build and start commands, bounded pools/queues, health/readiness, graceful shutdown, job recovery, contract compatibility and observable failure. Do not create empty workers, event buses or adapter abstractions without their first implemented workflow.
 
 ## Selected hosted data stack
+
+A0 adds canonical principals without changing Auth0 human accounts or role presets. Human principal UUIDs equal the existing user UUIDs. Migration 0008 backfills principal-aware audit/receipt identity and keeps legacy human actor fields through compatibility triggers; machine records have a null human actor and an explicit principal. Principal type/user/tenant bindings are immutable. Agent registry/version history, normalized project grants, hashed credentials/sessions and inert proposals persist in PostgreSQL. No scheduled person or human time entry is created by registration.
+
+`kivo-agents` owns registry/session contracts; `kivo-agent-runtime` owns bounded tool ports, pure daily capacity/move evaluation and proposal states. Postgres modules implement atomic authority/version/mutation/audit/receipt decisions. HTTP and MCP only deserialize trusted inputs, obtain verified principals and call those same ports. Queries recheck the whole active delegation chain in their transaction, and tool catalogs are filtered by current capability. Rotation invalidates sessions; revocation or loss of an ancestor's accountable owner authority blocks descendants. Typed scopes intersect across at most four agent levels.
+
+Schedule queries are 1–93 inclusive days with a maximum 200 assignments per UUID page; agent scope is at most 50 projects. Capacity reads one permitted person, shares deterministic calendar/leave math, and discloses aggregate workload without unrelated project details. Financial fields are excluded from tool DTOs for every caller. Dense capacity sources fail explicitly rather than truncate. Proposals retain their original source revision, assignment version, content hash and private-context fingerprint. Human review revalidates current source and authority; rejection/cancellation records a decision without a live effect. Registry and decision changes emit the existing durable invalidation events. [Agent setup](agent-setup.md) documents full bounds and connection contracts.
+
+Durable runs/steps, inference, live publication, budget/cancellation fences and hybrid resource units remain in [Human and agent system design](agentic-system-design.md). No agent-runner or inference adapter is introduced by A0. Autonomous live effects in A3 must still atomically check authority, budget, source versions and cancellation.
 
 Decision recorded on 2026-10-13. The experiment uses these three services:
 
@@ -197,13 +210,13 @@ Proposed performance gates on a documented mid-range laptop: 1,000 people / 20,0
 
 ## Planned extensions
 
-**Calendar extensions:** contract start/end dates, regional holiday feeds, leave requests and approval, recurring leave, and interval-based partial days. The current implementation supports manual workspace holidays and recorded time off, not HR approvals or historical financial snapshots.
+**Calendar extensions:** employment start/end dates, regional holiday feeds, policy allowances/balances, delegated leave reviews, recurring leave, and interval-based partial days. The current implementation supports manual workspace holidays, recorded time off and member leave requests with Owner/Admin approval. Historical financial snapshots remain future work.
 
 **Project scope:** phases, milestones, staffing demands, placeholder roles, dependencies, explicit billable flags, client entities and rate cards. Separate tentative demand from approved commitments.
 
-**Time and financials:** actual time entries, approval/lock periods, effective rates snapshotted on approved work, versioned budgets, currency-specific minor units, and explicit exchange-rate sources. Fixed-fee margin and time-and-materials revenue use different formulas. Never conflate planned revenue with recognized revenue.
+**Time and financials:** existing actual time entries and weekly approval locks expand into planned suggestions, timers, deadlines and audited corrections. Effective rates snapshotted on approved work, versioned budgets, currency-specific minor units, and explicit exchange-rate sources remain future work. Fixed-fee margin and time-and-materials billable value use different formulas. Never conflate planned billable value with recognized revenue.
 
-**Identity extensions:** tenant quotas, scoped API keys, richer member time-entry permissions and enterprise identity policy. Tenant RLS may add defense in depth after the application contract and connection-pool transaction settings are tested.
+**Identity extensions:** broader tenant quotas, human scoped API keys, richer member time-entry permissions and enterprise identity policy. A0 service credentials already have expiring project/tool delegations. Tenant RLS may add defense in depth after the application contract and connection-pool transaction settings are tested.
 
 **Realtime extensions:** paginated snapshots and changed-range fetches, load-tested connection scaling, retention/cleanup, and optional ephemeral presence. Current replicas independently observe the durable database revision log; Redis fan-out may reduce polling at larger scale but cannot own correctness.
 

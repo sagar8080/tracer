@@ -71,16 +71,22 @@ npm run test:shared
 
 `npm run dev:api` builds the workspace and starts the API. For a separate schema step, use `npm run db:migrate`, then `KIVO_RUN_MIGRATIONS=0 cargo run --locked -p kivo-api`. The migrator reads only database configuration and needs no development token or provider credentials.
 
-`test:api` uses an isolated PostgreSQL 17 instance supplied by the development-only `embedded-postgres` package; it requires free loopback ports 4000 and 55432 and cleans up its database and processes.
+`test:api` uses an isolated PostgreSQL 17 instance supplied by the development-only `embedded-postgres` package; it requires free loopback ports 4000 and 55432 and cleans up its database and processes. Use `KIVO_TEST_API_PORT=4200` when the configured API is running on 4000. `test:shared` runs identity, self-service and agent/MCP contracts on isolated ports 4100/4101/4455/55433. Optional browser QA uses `KIVO_BROWSER_QA=1 KIVO_QA_WEB_PORT=3002 npm run test:shared` and a generated web checkout without hosted environment files.
 
 See [validation evidence](docs/validation.md) for executed checks and limits. Browser captures are generated in ignored `output/playwright/`.
 
 ## Design and delivery
 
+The public product page is at `/`, with an illustrative interactive tour and signup/login. The existing shared workspace and account onboarding live at `/app`. Public examples do not read or write workspace data. Auth0 callback URLs are unchanged; login returns to `/app` and invitation acceptance retains its selected organization.
+
+- [Product design and iteration plan](docs/product-design.md)
+- [Human and agent system design](docs/agentic-system-design.md)
+- [External agent connection guide](docs/agent-setup.md)
+- [Feature coverage and Float parity](docs/feature-parity.md)
 - [Canonical design system — Quiet Canvas](docs/design-system.md)
 - [Competitive research and product direction](docs/product-strategy.md)
-- [Information architecture and domain rules](docs/product-strategy.md#information-architecture)
+- [Information architecture and user journeys](docs/product-design.md#product-surfaces-and-interaction-design)
 - [Architecture, data model, and API boundaries](docs/architecture.md)
 - [Crate boundaries and modular architecture](docs/architecture.md#crate-and-process-boundaries)
 
-Next milestones are financial forecasts, integrations, billing, bounded schedule queries and scale benchmarks. Neon PostgreSQL is canonical storage; analytics and reporting remain in PostgreSQL. Upstash is optional request limiting, Neon Object Storage stores private files, and a separate realtime process delivers committed PostgreSQL changes. See [Auth0 and shared workspace setup](docs/auth0-setup.md) for configuration, role policy, retry/reconnect guarantees and operational limits.
+Development follows the [iteration plan](docs/product-design.md#iteration-sequence). A0 now provides distinct service principals, expiring project delegations, short sessions, bounded schedule/capacity tools and inert proposals through the API/MCP. In shared workspaces, Owner/Admin register agents in the workspace switcher → Agent activity; Owner/Admin/Planner review proposals there. No proposal changes the live schedule. Workbook intake (A1), continuous runs (A2), delegated publication (A3) and mixed delivery (A4) remain planned. C0/C1 performance evidence and the retained C1–C14 capability roadmap remain obligations. Neon PostgreSQL owns application truth and analytics. Upstash is optional limiting; Neon Object Storage holds private files; a separate realtime process delivers committed changes. See [shared workspace setup](docs/auth0-setup.md) and [agent setup](docs/agent-setup.md) for configuration and operating limits.
