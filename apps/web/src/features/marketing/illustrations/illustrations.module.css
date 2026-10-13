@@ -1,0 +1,376 @@
+.planning,
+.capacity,
+.shared {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.planning {
+  max-height: 220px;
+}
+.capacity {
+  margin-top: 28px;
+}
+.sharedStage {
+  padding: 10px 30px 6px;
+}
+.sage {
+  color: #a8bcab;
+}
+.lilac {
+  color: #b7abd4;
+}
+.blue {
+  color: #9bb8d0;
+}
+.grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.day {
+  fill: var(--subtle);
+  font-size: 11px;
+}
+.avatar {
+  fill: currentColor;
+  fill-opacity: 0.14;
+}
+.initials {
+  fill: currentColor;
+  font-size: 10px;
+}
+.block {
+  fill: currentColor;
+  fill-opacity: 0.18;
+}
+.blockEdge {
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.allocationTitle {
+  fill: currentColor;
+  font-size: 12px;
+}
+.allocationMeta {
+  fill: currentColor;
+  opacity: 0.7;
+  font-size: 10px;
+}
+.blockShadow {
+  fill: #000;
+  fill-opacity: 0.16;
+}
+.draft {
+  fill: var(--panel);
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+.dragCursor svg {
+  fill: var(--ink);
+  color: var(--paper);
+  stroke-width: 1.5;
+}
+.dragCursor > rect {
+  fill: var(--ink);
+}
+.dragCursor > text {
+  fill: var(--paper);
+  font-size: 10px;
+}
+.movingAllocation {
+  animation: moveAllocation 4200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.moveGuide {
+  fill: none;
+  stroke: #a8bcab;
+  stroke-opacity: 0.25;
+  stroke-width: 1;
+  stroke-dasharray: 0.02 0.04;
+}
+.planning[data-playing="false"] .movingAllocation {
+  animation-play-state: paused;
+}
+.capacityOutline {
+  fill: none;
+  stroke: var(--line-strong);
+  vector-effect: non-scaling-stroke;
+}
+.capacityLabel {
+  fill: var(--subtle);
+  font-size: 10px;
+}
+.plannedBar {
+  fill: var(--accent);
+  fill-opacity: 0.24;
+  stroke: var(--accent);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+.plannedLabel {
+  fill: var(--ink);
+  font-size: 11px;
+}
+.overloadedBar {
+  fill: var(--warning);
+  stroke: var(--warning);
+}
+.overloadedLabel {
+  fill: var(--warning);
+}
+.overloadLimit {
+  fill: none;
+  stroke: var(--warning);
+  stroke-opacity: 0.65;
+  stroke-dasharray: 2 3;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+[data-visible="true"] .capacity .plannedBar {
+  animation: fillCapacity 850ms var(--bar-delay, 0ms)
+    cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.connection {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.18;
+  stroke-width: 1.5;
+  stroke-dasharray: 100;
+}
+.signal {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 7 93;
+  opacity: 0;
+}
+.identityRing {
+  fill: none;
+  stroke: currentColor;
+  stroke-opacity: 0.22;
+}
+.identityInitials {
+  fill: currentColor;
+  font-size: 16px;
+}
+.identityName {
+  fill: var(--ink);
+  stroke: var(--paper);
+  stroke-width: 6px;
+  paint-order: stroke;
+  font-size: 14px;
+}
+.identityRole {
+  fill: var(--subtle);
+  font-size: 12px;
+}
+.planFrame {
+  fill: var(--sidebar);
+  stroke: var(--line-strong);
+}
+.planTitle {
+  fill: var(--muted);
+  font-size: 12px;
+}
+.projectTitle {
+  fill: currentColor;
+  font-size: 11px;
+}
+.pointer {
+  fill: currentColor;
+  stroke: var(--paper);
+  stroke-width: 1.5;
+}
+.pointerTag {
+  fill: currentColor;
+}
+.pointerName {
+  fill: var(--paper);
+  font-size: 11px;
+}
+.planPresence {
+  fill: #a8bcab;
+}
+.sharedStage[data-started="true"] .connection {
+  animation: connectPlan 1200ms both;
+  animation-delay: inherit;
+}
+.sharedStage[data-started="true"] .signal {
+  animation: signalTravel 4800ms linear infinite;
+  animation-delay: inherit;
+}
+.sharedStage[data-started="true"] .memberPointer {
+  animation: memberMove 9200ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.sharedStage[data-started="true"] .plannerPointer {
+  animation: plannerMove 9000ms 650ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+.sharedStage[data-started="true"] .planPresence {
+  animation: presence 4800ms ease-in-out infinite;
+}
+.sharedStage[data-playing="false"] * {
+  animation-play-state: paused !important;
+}
+.motionControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 0 8px 8px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.motionControl:hover {
+  color: var(--ink);
+}
+.motionControl:disabled {
+  color: var(--subtle);
+  cursor: default;
+}
+.sharedHeaderNote {
+  color: var(--subtle);
+  font-size: 10px;
+}
+@keyframes moveAllocation {
+  0%,
+  12% {
+    transform: translate(-200px, -10px);
+  }
+  60%,
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes fillCapacity {
+  from {
+    transform: scaleY(0.1);
+    opacity: 0.25;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+@keyframes connectPlan {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes signalTravel {
+  0% {
+    stroke-dashoffset: 100;
+    opacity: 0;
+  }
+  15%,
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+@keyframes memberMove {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  35% {
+    transform: translate(-20px, 8px);
+  }
+  72% {
+    transform: translate(10px, -6px);
+  }
+}
+@keyframes plannerMove {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  35%,
+  60% {
+    transform: translate(-26px, -7px);
+  }
+  80% {
+    transform: translate(12px, -10px);
+  }
+}
+@keyframes presence {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (max-width: 600px) {
+  .sharedStage {
+    padding-inline: 10px;
+  }
+  .planning .day {
+    font-size: 17px;
+  }
+  .planning .allocationTitle {
+    font-size: 16px;
+  }
+  .planning .allocationMeta {
+    font-size: 13px;
+  }
+  .planning .initials {
+    font-size: 14px;
+  }
+  .capacity .day,
+  .capacityLabel,
+  .plannedLabel {
+    font-size: 14px;
+  }
+  .identityName {
+    font-size: 22px;
+  }
+  .identityRole {
+    display: none;
+  }
+  .identityInitials {
+    font-size: 21px;
+  }
+  .planTitle {
+    font-size: 19px;
+  }
+  .projectTitle {
+    font-size: 20px;
+  }
+  .pointerName,
+  .pointerTag {
+    display: none;
+  }
+  .motionControl,
+  .sharedHeaderNote {
+    font-size: 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .planning *,
+  .capacity *,
+  .shared * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .signal {
+    display: none;
+  }
+}
+
+.shared .pointer,
+.shared g > svg {
+  color: inherit;
+}

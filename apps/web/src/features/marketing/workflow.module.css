@@ -1,0 +1,398 @@
+.workflow {
+  display: grid;
+  grid-template-columns: 0.8fr 1.5fr;
+  gap: 64px;
+  align-items: center;
+  margin-top: 56px;
+}
+.steps [role="tablist"] {
+  display: grid;
+}
+.steps [role="tab"] {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  padding: 25px 0;
+  text-align: left;
+  border-top: 1px solid var(--line-strong);
+  color: var(--subtle);
+}
+.steps [role="tab"]:last-child {
+  border-bottom: 1px solid var(--line-strong);
+}
+.stepIndex {
+  font-size: 11px;
+  padding-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.steps strong {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 450;
+  letter-spacing: -0.02em;
+}
+.steps small {
+  display: block;
+  max-width: 280px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.steps [aria-selected="true"] {
+  color: var(--ink);
+}
+.steps [aria-selected="true"] small {
+  color: var(--muted);
+}
+.steps [aria-selected="true"] .stepIndex {
+  color: var(--accent);
+}
+.progress {
+  position: absolute;
+  left: 0;
+  top: -1px;
+  height: 1px;
+  width: 100%;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.workflow[data-playing="true"] .progress {
+  animation: progress var(--scene-duration) linear both;
+}
+.playback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 12px 0;
+  margin-top: 15px;
+}
+.playback:hover {
+  color: var(--ink);
+}
+.playback:disabled {
+  color: var(--subtle);
+  cursor: default;
+}
+.scene {
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.sceneTop,
+.sceneBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 19px 28px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+}
+.sceneTop > span:last-child,
+.sceneBottom {
+  color: var(--subtle);
+  font-size: 10px;
+}
+.sceneBottom {
+  border-bottom: 0;
+  border-top: 1px solid var(--line);
+}
+.sceneBody {
+  min-height: 380px;
+  padding: 32px 32px 20px;
+  animation: sceneIn 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.sceneBody h3 {
+  font-size: clamp(19px, 2vw, 26px);
+  font-weight: 450;
+  letter-spacing: -0.035em;
+  max-width: 350px;
+  line-height: 1.3;
+}
+.planScene {
+  margin-top: 30px;
+}
+.person {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #a8bcab18;
+  color: #a8bcab;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  font-size: 9px;
+}
+.loadRow:nth-child(2) .person {
+  color: #b7abd4;
+  background: #b7abd418;
+}
+.loadRow:nth-child(3) .person {
+  color: #9bb8d0;
+  background: #9bb8d018;
+}
+.planNote {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 20px;
+}
+.planNote > svg:last-child {
+  margin-left: auto;
+}
+.capacityScene {
+  padding-top: 24px;
+}
+.loadRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.loadRow > div {
+  flex: 1;
+  min-width: 0;
+}
+.loadRow > div > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 11px;
+}
+.loadRow small {
+  font-size: 9px;
+  color: var(--subtle);
+}
+.loadRail {
+  margin-top: 10px;
+  height: 5px;
+  background: var(--selected);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.loadRail i {
+  display: block;
+  height: 100%;
+  background: #a8bcab;
+  border-radius: 3px;
+  transform-origin: left;
+  animation: grow 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.loadRow > span:last-child {
+  width: 54px;
+  text-align: right;
+  font-size: 10px;
+}
+.warning {
+  color: var(--warning);
+}
+.room {
+  color: #a8bcab;
+}
+.capacityNote {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  margin-top: 18px;
+  color: var(--muted);
+}
+.actualsScene {
+  margin-top: 22px;
+}
+.legend {
+  display: flex;
+  justify-content: end;
+  gap: 15px;
+  color: var(--subtle);
+  font-size: 9px;
+}
+.legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend i {
+  width: 5px;
+  height: 5px;
+  background: #a6a3f533;
+}
+.legend span:last-child i {
+  background: var(--accent);
+}
+.comparison {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 18px;
+  margin-top: 18px;
+}
+.comparison > span {
+  font-size: 10px;
+  color: var(--muted);
+}
+.comparison > div {
+  display: grid;
+  gap: 3px;
+}
+.comparison > div > span {
+  display: block;
+  padding: 3px 8px;
+  min-width: 34px;
+  background: #a6a3f522;
+  border-radius: 2px;
+  font-size: 9px;
+  color: var(--muted);
+  transform-origin: left;
+  animation: grow 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.comparison > div > span:last-child {
+  background: #a6a3f555;
+  color: var(--ink);
+  animation-delay: 100ms;
+}
+.actualsNote {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+  color: var(--subtle);
+  margin-top: 22px;
+}
+@keyframes progress {
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes sceneIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes grow {
+  from {
+    transform: scaleX(0.2);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+@media (max-width: 1100px) {
+  .workflow {
+    gap: 36px;
+    grid-template-columns: 0.85fr 1.5fr;
+  }
+  .sceneBody {
+    padding-inline: 24px;
+  }
+}
+@media (max-width: 800px) {
+  .workflow {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    margin-top: 36px;
+  }
+  .steps [role="tablist"] {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+  }
+  .steps [role="tab"] {
+    padding: 18px 0;
+    gap: 9px;
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .steps strong {
+    font-size: 13px;
+  }
+  .steps strong svg,
+  .steps small {
+    display: none;
+  }
+  .playback {
+    margin: 0;
+    padding: 8px 0;
+  }
+  .sceneBody {
+    min-height: 380px;
+  }
+}
+@media (max-width: 600px) {
+  .workflow {
+    gap: 14px;
+  }
+  .steps [role="tablist"] {
+    gap: 12px;
+  }
+  .steps [role="tab"] {
+    display: grid;
+    gap: 6px;
+    padding: 14px 0;
+  }
+  .steps strong {
+    font-size: 11px;
+  }
+  .sceneTop,
+  .sceneBottom {
+    padding: 15px 18px;
+    font-size: 10px;
+    gap: 8px;
+  }
+  .sceneTop > span:last-child,
+  .sceneBottom {
+    font-size: 8px;
+  }
+  .sceneBody {
+    padding: 25px 18px 20px;
+    min-height: 360px;
+  }
+  .sceneBody h3 {
+    font-size: 22px;
+  }
+  .planNote {
+    font-size: 9px;
+  }
+  .loadRow {
+    gap: 8px;
+  }
+  .loadRow > div > span {
+    font-size: 10px;
+  }
+  .loadRow small {
+    display: none;
+  }
+  .capacityNote {
+    font-size: 9px;
+    gap: 10px;
+  }
+  .comparison {
+    grid-template-columns: 75px 1fr;
+    gap: 10px;
+  }
+  .actualsNote {
+    font-size: 8px;
+    align-items: start;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workflow *,
+  .workflow *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

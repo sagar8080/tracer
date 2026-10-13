@@ -65,6 +65,16 @@ Use one continuous page, generous spacing, thin section dividers and real produc
 
 The homepage at `/` remains available when signed in. `/app` owns the authenticated workspace; signup/login return there and invitation acceptance preserves its selected organization. The marketing feature owns its components and scoped styles rather than adding page-specific rules to global workspace CSS.
 
+### Public-page motion
+
+Show the work instead of adding more explanatory paragraphs: a moving allocation, capacity filling, planned/recorded comparisons and a shared-plan illustration. Keep each example labelled as illustrative. Marketing motion belongs to `features/marketing`; it never writes planning records or expands the workspace's animation timings.
+
+Use short, finite entrances (400–800ms), small transforms, chart growth and responsive hover/press feedback. Scroll reveals enhance already-visible server content; JavaScript failure must not leave text hidden. Native anchors scroll smoothly without intercepting navigation. Preview and workflow scenes reserve consistent space to avoid layout jumps.
+
+Automatic tours have visible pause/play controls and seven-second scene intervals. Manual selection, focus inside an example and pointer interaction stop advancement; hidden documents and offscreen examples suspend timers. Hovering the workflow illustration temporarily holds playback. Reduced motion disables automatic tours, entrances and smooth scrolling while preserving manual tabs, chart perspectives and disclosures. Each example owns playback through the small shared hook, with observer/listener/timer cleanup and no animation dependency.
+
+Product illustrations use inline SVG components under `features/marketing/illustrations`. Animate the relevant parts: allocation/cursor groups move together, bars fill below accurate capacity limits, and short signals travel along shared-plan paths. Keep labels and semantic descriptions available, reserve viewBox space, and remove secondary cursor labels on narrow screens. Continuous SVG sequences have pause/play controls and pause their CSS animations offscreen without resetting the scene. Reduced motion renders the complete static composition. Use native SVG/CSS rather than video, raster frame sequences or an animation dependency for these small diagrams; the actual interactive product preview stays semantic HTML.
+
 ## Acceptance checklist for future work
 
 - The screen reads as one canvas, with one location header and one contextual toolbar.
