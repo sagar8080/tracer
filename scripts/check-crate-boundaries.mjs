@@ -14,6 +14,7 @@ const graph = new Map(
   packages.filter((p) => members.includes(p.id)).map((p) => [p.name, p]),
 );
 const edges = {
+  "kivo-onboarding": ["kivo-tenancy", "kivo-planning"],
   "kivo-tenancy": [],
   "kivo-identity": ["kivo-tenancy"],
   "kivo-auth0": ["kivo-identity"],
@@ -22,6 +23,7 @@ const edges = {
   "kivo-planning": ["kivo-tenancy"],
   "kivo-files": ["kivo-tenancy"],
   "kivo-postgres": [
+    "kivo-onboarding",
     "kivo-tenancy",
     "kivo-planning",
     "kivo-files",
@@ -31,6 +33,7 @@ const edges = {
   "kivo-object-storage-s3": ["kivo-files"],
   "kivo-rate-limit": [],
   "kivo-api": [
+    "kivo-onboarding",
     "kivo-identity",
     "kivo-auth0",
     "kivo-realtime",
@@ -60,6 +63,7 @@ for (const [name, pkg] of graph) {
       );
     if (
       [
+        "kivo-onboarding",
         "kivo-tenancy",
         "kivo-planning",
         "kivo-files",

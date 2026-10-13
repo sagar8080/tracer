@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod files;
 mod migration;
+mod onboarding;
 mod team;
 use anyhow::bail;
 use axum::{
@@ -188,6 +189,14 @@ async fn main() -> anyhow::Result<()> {
             get(|| async { Json(serde_json::json!({"status":"ok"})) }),
         )
         .route("/v1/workspace", get(read).post(write))
+        .route(
+            "/v1/onboarding",
+            get(onboarding::status).post(onboarding::setup),
+        )
+        .route(
+            "/v1/organizations/{org}/enrollment",
+            post(onboarding::enroll),
+        )
         .route("/ready", get(ready))
         .route(
             "/v1/organizations/{org}/team",

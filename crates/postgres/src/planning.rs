@@ -160,7 +160,7 @@ async fn execute(pool: &PgPool, user: Uuid, c: Command, key: Option<Uuid>) -> Re
     tx.commit().await?;
     Ok(())
 }
-async fn persist(tx: &mut Transaction<'_, Postgres>, c: &Command) -> Result<(), Error> {
+pub(super) async fn persist(tx: &mut Transaction<'_, Postgres>, c: &Command) -> Result<(), Error> {
     let rows=match c {
  Command::Organization(v)=>sqlx::query("UPDATE organizations SET name=$2,timezone=$3,currency=$4,version=$5 WHERE id=$1 AND version=$5-1").bind(v.id).bind(&v.name).bind(&v.timezone).bind(&v.currency).bind(v.version).execute(&mut **tx).await?.rows_affected(),
  Command::Person(v)=>{

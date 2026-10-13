@@ -32,8 +32,10 @@ pub async fn write(
     ))
 }
 #[derive(Deserialize)]
-pub struct Acceptance {
-    token: String,
+#[serde(untagged, deny_unknown_fields)]
+pub enum Acceptance {
+    Link { token: String },
+    Discovered { id: Uuid },
 }
 pub async fn accept(
     State(state): State<AppState>,
@@ -41,7 +43,12 @@ pub async fn accept(
     Json(input): Json<Acceptance>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let context = authorize(&headers, &state).await?;
-    let org = state.database.accept(context.actor, &input.token).await?;
+    let org = match input {
+        Acceptance::Link { token } => state.database.accept(context.actor, &token).await?,
+        Acceptance::Discovered { id } => {
+            state.database.accept_invitation(context.actor, id).await?
+        }
+    };
     Ok(Json(serde_json::json!({"orgId":org})))
 }
 pub async fn ticket(

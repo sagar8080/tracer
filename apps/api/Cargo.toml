@@ -18,6 +18,7 @@ tracing-subscriber.workspace = true
 dotenvy.workspace = true
 url.workspace = true
 thiserror.workspace = true
+kivo-onboarding.workspace = true
 kivo-tenancy.workspace = true
 kivo-planning.workspace = true
 kivo-files.workspace = true

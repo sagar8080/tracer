@@ -67,3 +67,20 @@ impl From<Error> for kivo_realtime::Error {
         }
     }
 }
+
+impl From<Error> for kivo_onboarding::Error {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::Forbidden => Self::Forbidden,
+            Error::Conflict | Error::NotFound => Self::Conflict,
+            Error::Invalid(m) => Self::Invalid(m),
+            Error::Database(e) => {
+                if constraint(e) {
+                    Self::Conflict
+                } else {
+                    Self::Unavailable
+                }
+            }
+        }
+    }
+}

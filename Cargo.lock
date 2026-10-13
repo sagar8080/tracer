@@ -1850,6 +1850,7 @@ dependencies = [
  "kivo-files",
  "kivo-identity",
  "kivo-object-storage-s3",
+ "kivo-onboarding",
  "kivo-planning",
  "kivo-postgres",
  "kivo-rate-limit",
@@ -1926,6 +1927,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "kivo-onboarding"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-planning",
+ "kivo-tenancy",
+ "serde",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "kivo-planning"
 version = "0.1.0"
 dependencies = [
@@ -1946,6 +1959,7 @@ dependencies = [
  "chrono",
  "kivo-files",
  "kivo-identity",
+ "kivo-onboarding",
  "kivo-planning",
  "kivo-realtime",
  "kivo-tenancy",

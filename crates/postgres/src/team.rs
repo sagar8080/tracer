@@ -21,6 +21,9 @@ impl Repository for Postgres {
             .await
             .map_err(Into::into)
     }
+    async fn accept_invitation(&self, actor: Actor, id: Uuid) -> Result<Uuid, kivo_tenancy::Error> {
+        accept_id(self, actor, id).await.map_err(Into::into)
+    }
     async fn accept(&self, actor: Actor, token: &str) -> Result<Uuid, kivo_tenancy::Error> {
         accept(self, actor, token).await.map_err(Into::into)
     }
@@ -31,15 +34,16 @@ async fn team(db: &Postgres, actor: Actor, org: Uuid) -> Result<Team, Error> {
         .execute(&mut *tx)
         .await?;
     tenancy::require(&mut tx, actor, org, Permission::Administer).await?;
-    let rows:Vec<(Uuid,String,String,i32)>=sqlx::query_as("SELECT u.id,u.email,m.role,m.version FROM memberships m JOIN users u ON u.id=m.user_id WHERE m.org_id=$1 ORDER BY lower(u.email),u.id").bind(org).fetch_all(&mut *tx).await?;
+    let rows:Vec<(Uuid,String,String,i32,Option<Uuid>)>=sqlx::query_as("SELECT u.id,u.email,m.role,m.version,p.person_id FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN member_people p ON p.org_id=m.org_id AND p.user_id=m.user_id WHERE m.org_id=$1 ORDER BY lower(u.email),u.id").bind(org).fetch_all(&mut *tx).await?;
     let members = rows
         .into_iter()
-        .map(|(user_id, email, role, version)| {
+        .map(|(user_id, email, role, version, person_id)| {
             Ok(Member {
                 user_id,
                 email,
                 role: Role::parse(&role).ok_or(Error::Forbidden)?,
                 version,
+                person_id,
             })
         })
         .collect::<Result<_, Error>>()?;
@@ -208,8 +212,16 @@ async fn accept(db: &Postgres, actor: Actor, token: &str) -> Result<Uuid, Error>
         return Err(Error::Invalid("This invitation is invalid or expired"));
     }
     let hash = events::hash(token);
-    let org: Uuid = sqlx::query_scalar("SELECT org_id FROM invitations WHERE token_hash=$1")
+    let id: Uuid = sqlx::query_scalar("SELECT id FROM invitations WHERE token_hash=$1")
         .bind(&hash)
+        .fetch_optional(&db.pool)
+        .await?
+        .ok_or(Error::Invalid("This invitation is invalid or expired"))?;
+    accept_id(db, actor, id).await
+}
+async fn accept_id(db: &Postgres, actor: Actor, invite_id: Uuid) -> Result<Uuid, Error> {
+    let org: Uuid = sqlx::query_scalar("SELECT org_id FROM invitations WHERE id=$1")
+        .bind(invite_id)
         .fetch_optional(&db.pool)
         .await?
         .ok_or(Error::Invalid("This invitation is invalid or expired"))?;
@@ -234,7 +246,7 @@ async fn accept(db: &Postgres, actor: Actor, token: &str) -> Result<Uuid, Error>
         Option<Uuid>,
         Option<DateTime<Utc>>,
     );
-    let (id,invited_email,invited_role,inviter,expires,accepted,revoked):InviteRow=sqlx::query_as("SELECT id,email,role,invited_by,expires_at,accepted_by,revoked_at FROM invitations WHERE token_hash=$1 AND org_id=$2 FOR UPDATE").bind(&hash).bind(org).fetch_one(&mut *tx).await?;
+    let (id,invited_email,invited_role,inviter,expires,accepted,revoked):InviteRow=sqlx::query_as("SELECT id,email,role,invited_by,expires_at,accepted_by,revoked_at FROM invitations WHERE id=$1 AND org_id=$2 FOR UPDATE").bind(invite_id).bind(org).fetch_one(&mut *tx).await?;
     if invited_email != email.to_lowercase() {
         return Err(Error::Forbidden);
     }

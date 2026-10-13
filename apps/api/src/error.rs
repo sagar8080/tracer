@@ -101,3 +101,14 @@ impl From<kivo_realtime::Error> for ApiError {
         }
     }
 }
+
+impl From<kivo_onboarding::Error> for ApiError {
+    fn from(e: kivo_onboarding::Error) -> Self {
+        match e {
+            kivo_onboarding::Error::Forbidden => Self::Forbidden,
+            kivo_onboarding::Error::Conflict => Self::Conflict,
+            kivo_onboarding::Error::Invalid(m) => Self::Invalid(m),
+            kivo_onboarding::Error::Unavailable => Self::Unavailable("Account setup unavailable"),
+        }
+    }
+}

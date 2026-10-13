@@ -28,6 +28,7 @@ pub struct Member {
     pub email: String,
     pub role: Role,
     pub version: i32,
+    pub person_id: Option<Uuid>,
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -100,6 +101,11 @@ pub trait Repository: Send + Sync {
         command: TeamCommand,
         request: Uuid,
     ) -> impl Future<Output = Result<Option<Invited>, Error>> + Send;
+    fn accept_invitation(
+        &self,
+        actor: Actor,
+        id: Uuid,
+    ) -> impl Future<Output = Result<Uuid, Error>> + Send;
     fn accept(&self, actor: Actor, token: &str)
     -> impl Future<Output = Result<Uuid, Error>> + Send;
 }
