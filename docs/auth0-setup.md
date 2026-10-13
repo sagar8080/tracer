@@ -6,6 +6,8 @@ Kivo uses Auth0 for sign-in and encrypted browser sessions. Kivo stores organiza
 
 Create a **Regular Web Application** for Kivo and an **API** with an identifier such as `https://api.kivo.app`. Select **RS256** for the API's signing algorithm. The identifier is an audience string, not a URL that Kivo needs to serve.
 
+Authorize the application to use that API: **Applications → APIs → Kivo API → Settings → Application Access Policy** should allow **User-Delegated Access** through **Per-app authorization**. Under the API's **Application Access** tab, select **Edit** beside the Kivo web application, open **User-Delegated Access**, and choose **Grant Access**, then save. Kivo uses user-delegated access; a machine-to-machine/client-access grant alone does not authorize browser sign-in. If Auth0 returns `Client ... is not authorized to access resource server ...`, check this grant and the exact audience. See [Auth0 API access policies](https://auth0.com/docs/get-started/apis/api-access-policies-for-applications).
+
 For local development, use these exact application URLs consistently:
 
 - Allowed Callback URLs: `http://127.0.0.1:3000/auth/callback`

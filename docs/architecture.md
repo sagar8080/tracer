@@ -26,12 +26,13 @@ These library crates contain the responsibilities implemented today. Future work
 | Library crate | Owns | Public boundary / dependencies |
 | --- | --- | --- |
 | `crates/tenancy` / `kivo-tenancy` | Organization and membership types, actor context and role-policy decisions. | Typed tenant/actor context and access decisions; no HTTP or provider SDKs. Identity remains a separate capability. |
+| `crates/onboarding` / `kivo-onboarding` | Personal/team workspace setup and explicit membership-to-person enrollment. | Pure typed workflows and atomic repository ports; depends on tenancy and planning contracts. No process or provider dependencies. |
 | `crates/identity` / `kivo-identity` | Verified issuer/subject identity and account directory ports. | Pure contracts; depends only on tenancy and value types. |
 | `crates/auth0` / `kivo-auth0` | RS256/JWKS verification and bounded key refresh. | Implements the identity verifier; no database or HTTP routing dependency. |
 | `crates/realtime` / `kivo-realtime` | Ticket and authorized committed-event replay contracts. | Pure ports; PostgreSQL implements durable storage. |
 | `crates/planning` / `kivo-planning` | People, projects, allocations, working calendars, leave, capacity rules and planning use cases. | Typed planning commands, results and atomic persistence ports. Internally separate people/projects/scheduling/capacity modules; depends on tenancy contracts. |
 | `crates/files` / `kivo-files` | File reservation, completion and download use cases; metadata and object-store contracts. | Typed file lifecycle operations and storage capabilities; depends on tenancy contracts. |
-| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, planning, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
+| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, onboarding, planning, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
 | `crates/rate-limit` / `kivo-rate-limit` | Rate-limit port, explicit allow/deny/unavailable outcomes, and Upstash REST implementation in a separate adapter module. | No authorization authority or scheduling locks. Its small stable interface is consumed by the HTTP process. Split additional adapters into their own crates when introduced. |
 | `crates/object-storage-s3` / `kivo-object-storage-s3` | Neon S3 endpoint configuration, signing, object verification and storage client lifecycle. | Implements the file capability's object-store port; provider SDK types remain private. |
 
@@ -42,7 +43,8 @@ Keep the dependency direction explicit:
 ```text
 kivo-planning ────────────────> kivo-tenancy
 kivo-files ───────────────────> kivo-tenancy
-kivo-postgres ────────────────> tenancy / identity / planning / files / realtime contracts
+kivo-onboarding ─────────────> tenancy / planning contracts
+kivo-postgres ────────────────> tenancy / identity / onboarding / planning / files / realtime contracts
 kivo-object-storage-s3 ───────> files object-store contract
 kivo-api ────────────────────> capability services + selected adapters
 kivo-migrator ────────────────> PostgreSQL migration support
@@ -200,3 +202,27 @@ Proposed performance gates on a documented mid-range laptop: 1,000 people / 20,0
 **Integrations:** encrypted OAuth credentials, per-tenant scopes, external ID mappings, inbound idempotency, sync cursors, backoff, explicit one-way/two-way semantics, and reconciliation. Calendar events should not create duplicate demand on each poll.
 
 **Billing:** Stripe customer/subscription records, verified webhook signatures, an event ledger, idempotent entitlement updates, and a clear scheduled-person definition. No billing secrets or trusted entitlement decisions in the browser.
+
+## Account onboarding and scheduling enrollment
+
+An authenticated account starts with no tenant memberships or planning resources. An email verified by the identity provider is required to create or join a workspace. The existing organization command also enforces the creation gate; the onboarding screen is not the authorization boundary. Local development identities are explicitly verified only in development authentication mode.
+
+`kivo-onboarding` owns setup and enrollment contracts; `postgres::onboarding` implements them and `apps/api/src/onboarding.rs` exposes thin handlers. Frontend flows live in `features/onboarding`, separate from the workspace canvas. Migration 0005 adds `member_people` with tenant-scoped foreign keys to memberships and people, unique on each side. It does not infer links for existing records.
+
+- **Personal setup:** atomically create a workspace, owner membership, the explicitly named scheduling profile and its association. The submitted working hours become the weekday default; calendars can override this later.
+- **Team setup:** atomically create a workspace and owner membership. Owners/admins add scheduling resources and invite account holders separately. Personal and team are initial setup choices, not separate permission models or permanent workspace types; a solo workspace can later invite a team.
+- **Joining:** discover active invitations only for the current verified email, or follow a secret invitation link. Both routes recheck email, expiry, revocation and inviter authority in the same locked acceptance transaction. Joining grants the invited role only; it creates neither a parallel workspace nor a scheduling profile. Invitation creation defaults to Member in the UI; invitation links still need to be shared manually.
+- **Enrollment:** owners/admins explicitly create a scheduling profile for a member or link an existing unlinked person in that organization. Scheduling enrollment never changes an account's role. The membership version guards concurrent role, removal and enrollment changes. A profile can link to one account per workspace; an account can have one profile per workspace. Linking by matching email is prohibited.
+- **Removal:** unlinking preserves the person and all planning history. Removing a membership revokes account access and cascades only the association; the person's allocations and calendars remain. Owners/admins manage these records separately.
+
+Setup and enrollment authorize before receipt replay, serialize on the organization before the membership, and atomically commit resources, association, membership version, audit, receipt and revision event. Existing live subscriptions invalidate on these committed events. No additional Redis authority, jobs or microservices are introduced.
+
+| Role | View schedules | Plan projects / allocations / time off | Manage people / calendars / access / enrollment | Financial rates |
+| --- | --- | --- | --- | --- |
+| Owner | Yes | Yes | Yes, including ownership | Yes |
+| Admin | Yes | Yes | Yes; cannot grant or change Owner/Admin roles | Yes |
+| Planner | Yes | Yes | No | No |
+| Member | Yes | No | No | No |
+| Viewer | Yes | No | No | No |
+
+Member and Viewer are currently both read-only. Future self-service timesheets or leave requests must introduce explicit permissions scoped to the association; a linked profile does not implicitly grant edit rights. Last-owner protection, tenant filtering, financial redaction and permission checks apply on the server. Signup alone never grants any existing organization's role.
