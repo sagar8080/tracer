@@ -1,0 +1,14 @@
+[package]
+name = "kivo-agent-runtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+[lints]
+workspace = true
+[dependencies]
+kivo-tenancy.workspace = true
+kivo-agents.workspace = true
+kivo-planning.workspace = true
+serde.workspace = true
+chrono.workspace = true
+uuid.workspace = true

@@ -8,6 +8,10 @@ rust-version.workspace = true
 workspace = true
 
 [dependencies]
+kivo-agents.workspace = true
+kivo-agent-runtime.workspace = true
+serde.workspace = true
+chrono-tz.workspace = true
 kivo-time-tracking.workspace = true
 kivo-leave-requests.workspace = true
 kivo-reporting.workspace = true

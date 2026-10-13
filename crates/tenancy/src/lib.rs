@@ -1,8 +1,10 @@
 //! Tenant identity and permission policy. No transport or storage dependencies.
 mod membership;
 mod organization;
+mod principal;
 pub use membership::*;
 pub use organization::Organization;
+pub use principal::{AgentCapability, AgentMode, AgentScope, Principal};
 use serde::{Deserialize, Serialize};
 use std::future::Future;
 use uuid::Uuid;

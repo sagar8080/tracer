@@ -1839,6 +1839,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "kivo-agent-runtime"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-agents",
+ "kivo-planning",
+ "kivo-tenancy",
+ "serde",
+ "uuid",
+]
+
+[[package]]
+name = "kivo-agents"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-tenancy",
+ "serde",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
 name = "kivo-api"
 version = "0.1.0"
 dependencies = [
@@ -1846,6 +1869,8 @@ dependencies = [
  "axum",
  "chrono",
  "dotenvy",
+ "kivo-agent-runtime",
+ "kivo-agents",
  "kivo-auth0",
  "kivo-files",
  "kivo-identity",
@@ -1972,6 +1997,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "chrono-tz",
+ "kivo-agent-runtime",
+ "kivo-agents",
  "kivo-files",
  "kivo-identity",
  "kivo-leave-requests",
@@ -1981,6 +2009,7 @@ dependencies = [
  "kivo-reporting",
  "kivo-tenancy",
  "kivo-time-tracking",
+ "serde",
  "serde_json",
  "sha2 0.10.9",
  "sqlx",

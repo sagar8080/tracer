@@ -11,6 +11,8 @@ rust-version = "1.95"
 unsafe_code = "forbid"
 
 [workspace.dependencies]
+kivo-agents = { path = "crates/agents" }
+kivo-agent-runtime = { path = "crates/agent-runtime" }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
