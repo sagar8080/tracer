@@ -31,6 +31,10 @@ export async function auth0Fixture() {
     bob: "bob@studio.test",
     carol: "carol@studio.test",
     dave: "dave@studio.test",
+    erin: "erin@studio.test",
+    frank: "frank@studio.test",
+    grace: "grace@studio.test",
+    unverified: "unverified@studio.test",
   };
   function jwt(claims, header = {}, signingKey = key) {
     const b64 = (value) =>
@@ -48,7 +52,7 @@ export async function auth0Fixture() {
         iat: now,
         exp: now + 3600,
         "https://kivo.app/email": users[user] ?? `${user}@studio.test`,
-        "https://kivo.app/email_verified": true,
+        "https://kivo.app/email_verified": user !== "unverified",
         ...claims,
       },
       header,
@@ -178,7 +182,7 @@ export async function auth0Fixture() {
           nonce: grant.nonce,
           name: grant.user,
           email: users[grant.user],
-          email_verified: true,
+          email_verified: grant.user !== "unverified",
         }),
       });
     }
