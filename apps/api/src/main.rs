@@ -5,6 +5,7 @@ mod files;
 mod migration;
 mod onboarding;
 mod team;
+mod time_tracking;
 use anyhow::bail;
 use axum::{
     Json, Router,
@@ -196,6 +197,10 @@ async fn main() -> anyhow::Result<()> {
         .route(
             "/v1/organizations/{org}/enrollment",
             post(onboarding::enroll),
+        )
+        .route(
+            "/v1/organizations/{org}/time",
+            get(time_tracking::read).post(time_tracking::write),
         )
         .route("/ready", get(ready))
         .route(

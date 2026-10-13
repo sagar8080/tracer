@@ -1856,6 +1856,7 @@ dependencies = [
  "kivo-rate-limit",
  "kivo-realtime",
  "kivo-tenancy",
+ "kivo-time-tracking",
  "serde",
  "serde_json",
  "thiserror",
@@ -1963,6 +1964,7 @@ dependencies = [
  "kivo-planning",
  "kivo-realtime",
  "kivo-tenancy",
+ "kivo-time-tracking",
  "serde_json",
  "sha2 0.10.9",
  "sqlx",
@@ -2018,6 +2020,17 @@ name = "kivo-tenancy"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "serde",
+ "thiserror",
+ "uuid",
+]
+
+[[package]]
+name = "kivo-time-tracking"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-tenancy",
  "serde",
  "thiserror",
  "uuid",

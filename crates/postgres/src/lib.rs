@@ -10,6 +10,7 @@ mod realtime;
 mod rows;
 mod team;
 mod tenancy;
+mod time_tracking;
 pub use connection::migration_connection;
 use std::time::Duration;
 

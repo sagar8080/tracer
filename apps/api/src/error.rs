@@ -112,3 +112,16 @@ impl From<kivo_onboarding::Error> for ApiError {
         }
     }
 }
+
+impl From<kivo_time_tracking::Error> for ApiError {
+    fn from(e: kivo_time_tracking::Error) -> Self {
+        match e {
+            kivo_time_tracking::Error::Forbidden => Self::Forbidden,
+            kivo_time_tracking::Error::Conflict => Self::Conflict,
+            kivo_time_tracking::Error::Invalid(m) => Self::Invalid(m),
+            kivo_time_tracking::Error::Unavailable => {
+                Self::Unavailable("This service is temporarily unavailable")
+            }
+        }
+    }
+}
