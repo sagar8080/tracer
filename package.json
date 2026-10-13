@@ -1,0 +1,26 @@
+{
+  "name": "kivo",
+  "private": true,
+  "workspaces": [
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @kivo/web",
+    "build": "npm run build --workspace @kivo/web",
+    "typecheck": "npm run typecheck --workspace @kivo/web",
+    "test": "npm run test --workspace @kivo/web",
+    "test:api": "node scripts/test-api.mjs",
+    "test:providers": "node scripts/test-api.mjs --providers",
+    "check:providers": "node scripts/check-providers.mjs",
+    "check:boundaries": "node scripts/check-crate-boundaries.mjs",
+    "dev:api": "cargo build --locked --workspace && cargo run --locked -p kivo-api",
+    "db:migrate": "cargo run --locked -p kivo-migrator",
+    "test:shared": "node scripts/test-shared.mjs",
+    "dev:realtime": "cargo run --locked -p kivo-realtime-server"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^17.10.0-beta.17",
+    "prettier": "^3.9.10",
+    "ws": "^8.22.0"
+  }
+}
