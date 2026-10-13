@@ -22,6 +22,8 @@ import {
   Undo2,
   PanelLeft,
   MoreHorizontal,
+  UserRound,
+  Clock3,
 } from "lucide-react";
 import type {
   Assignment,
@@ -62,8 +64,14 @@ import { permissions, mayEdit } from "@/features/tenancy/permissions";
 import { Welcome } from "@/features/onboarding/welcome";
 import { TeamDialog } from "@/features/tenancy/team-dialog";
 import { useLiveWorkspace } from "@/features/realtime/use-live-workspace";
+import { MyWork } from "@/features/my-work/my-work";
+import { Timesheets } from "@/features/time-tracking/timesheets";
+import { Reports } from "@/features/reporting/reports";
 import { ApiError } from "@/lib/http";
 const nav = [
+  { id: "mywork", label: "My work", icon: UserRound },
+  { id: "timesheets", label: "Timesheets", icon: Clock3 },
+  { id: "reports", label: "Reports", icon: BarChart3 },
   { id: "schedule", label: "Schedule", icon: CalendarDays },
   { id: "projects", label: "Projects", icon: FolderKanban },
   { id: "people", label: "People", icon: Users },
@@ -76,6 +84,7 @@ export default function Workspace({ account }: { account?: string }) {
   const [error, setError] = useState("");
   const [orgId, setOrgId] = useState("");
   const [view, setView] = useState<View>("schedule");
+  const featureView = ["mywork", "timesheets", "reports"].includes(view);
   const [start, setStart] = useState(monday(today()));
   const [query, setQuery] = useState("");
   const [team, setTeam] = useState("All teams");
@@ -131,11 +140,16 @@ export default function Workspace({ account }: { account?: string }) {
         if (!cancelled) {
           setData(d);
           const selected = sessionStorage.getItem("kivo.selected-org");
-          setOrgId(
+          const id =
             d.organizations.find((o) => o.id === selected)?.id ??
-              d.organizations[0]?.id ??
-              "",
-          );
+            d.organizations[0]?.id ??
+            "";
+          setOrgId(id);
+          if (
+            isRemote &&
+            d.access.find((a) => a.orgId === id)?.role === "member"
+          )
+            setView("mywork");
         }
       })
       .catch((e) => {
@@ -174,7 +188,7 @@ export default function Workspace({ account }: { account?: string }) {
   }, []);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (onboarding || !data?.organizations.length) return;
+      if (onboarding || !data?.organizations.length || featureView) return;
       const input =
         e.target instanceof HTMLElement &&
         ["INPUT", "TEXTAREA", "SELECT"].includes(e.target.tagName);
@@ -594,26 +608,31 @@ export default function Workspace({ account }: { account?: string }) {
         </Dropdown.Root>
         <div className="nav-label">Workspace</div>
         <nav>
-          {nav.map((n) => (
-            <button
-              key={n.id}
-              className={view === n.id ? "active" : ""}
-              aria-label={n.label}
-              aria-current={view === n.id ? "page" : undefined}
-              title={n.label}
-              onClick={() => {
-                setView(n.id);
-                setQuery("");
-                setOnlyConflicts(false);
-              }}
-            >
-              <n.icon size={18} />
-              {n.label}
-              {n.id === "people" && (
-                <span className="nav-count">{allPeople.length}</span>
-              )}
-            </button>
-          ))}
+          {nav
+            .filter(
+              (n) =>
+                isRemote || !["mywork", "timesheets", "reports"].includes(n.id),
+            )
+            .map((n) => (
+              <button
+                key={n.id}
+                className={view === n.id ? "active" : ""}
+                aria-label={n.label}
+                aria-current={view === n.id ? "page" : undefined}
+                title={n.label}
+                onClick={() => {
+                  setView(n.id);
+                  setQuery("");
+                  setOnlyConflicts(false);
+                }}
+              >
+                <n.icon size={18} />
+                {n.label}
+                {n.id === "people" && (
+                  <span className="nav-count">{allPeople.length}</span>
+                )}
+              </button>
+            ))}
         </nav>
         <div className="sidebar-projects">
           <div className="nav-label">
@@ -704,65 +723,69 @@ export default function Workspace({ account }: { account?: string }) {
             </button>
             <h1>{nav.find((n) => n.id === view)?.label}</h1>
             <span className="header-context">
-              {view === "projects"
-                ? `${projects.length} projects`
-                : `${allPeople.length} ${allPeople.length === 1 ? "person" : "people"}`}
+              {featureView
+                ? "Your workspace"
+                : view === "projects"
+                  ? `${projects.length} projects`
+                  : `${allPeople.length} ${allPeople.length === 1 ? "person" : "people"}`}
             </span>
           </div>
-          <div className="heading-actions">
-            <Dropdown.Root>
-              <Dropdown.Trigger
-                className="icon-button"
-                aria-label="Workspace actions"
+          {!featureView && (
+            <div className="heading-actions">
+              <Dropdown.Root>
+                <Dropdown.Trigger
+                  className="icon-button"
+                  aria-label="Workspace actions"
+                >
+                  <MoreHorizontal size={18} />
+                </Dropdown.Trigger>
+                <Dropdown.Portal>
+                  <Dropdown.Content className="menu" align="end" sideOffset={8}>
+                    <Dropdown.Item
+                      disabled={!access.plan}
+                      onSelect={() => newTimeOff()}
+                    >
+                      <CalendarDays size={15} />
+                      Add time off
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                      disabled={!access.administer}
+                      onSelect={() => newTimeOff(undefined, start, "holiday")}
+                    >
+                      <CalendarDays size={15} />
+                      Add workspace holiday
+                    </Dropdown.Item>
+                    <Dropdown.Separator />
+                    <Dropdown.Item onSelect={exportCsv}>
+                      <ArrowDownToLine size={15} />
+                      Export schedule CSV
+                    </Dropdown.Item>
+                    <Dropdown.Item
+                      disabled={!access.administer}
+                      onSelect={() =>
+                        setEditor({ kind: "organization", value: org! })
+                      }
+                    >
+                      <Settings2 size={15} />
+                      Workspace settings
+                    </Dropdown.Item>
+                  </Dropdown.Content>
+                </Dropdown.Portal>
+              </Dropdown.Root>
+              <button
+                className="primary"
+                disabled={view === "people" ? !access.administer : !access.plan}
+                onClick={openNew}
               >
-                <MoreHorizontal size={18} />
-              </Dropdown.Trigger>
-              <Dropdown.Portal>
-                <Dropdown.Content className="menu" align="end" sideOffset={8}>
-                  <Dropdown.Item
-                    disabled={!access.plan}
-                    onSelect={() => newTimeOff()}
-                  >
-                    <CalendarDays size={15} />
-                    Add time off
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    disabled={!access.administer}
-                    onSelect={() => newTimeOff(undefined, start, "holiday")}
-                  >
-                    <CalendarDays size={15} />
-                    Add workspace holiday
-                  </Dropdown.Item>
-                  <Dropdown.Separator />
-                  <Dropdown.Item onSelect={exportCsv}>
-                    <ArrowDownToLine size={15} />
-                    Export schedule CSV
-                  </Dropdown.Item>
-                  <Dropdown.Item
-                    disabled={!access.administer}
-                    onSelect={() =>
-                      setEditor({ kind: "organization", value: org! })
-                    }
-                  >
-                    <Settings2 size={15} />
-                    Workspace settings
-                  </Dropdown.Item>
-                </Dropdown.Content>
-              </Dropdown.Portal>
-            </Dropdown.Root>
-            <button
-              className="primary"
-              disabled={view === "people" ? !access.administer : !access.plan}
-              onClick={openNew}
-            >
-              <Plus size={15} />
-              {view === "people"
-                ? "Add person"
-                : view === "projects"
-                  ? "New project"
-                  : "Plan work"}
-            </button>
-          </div>
+                <Plus size={15} />
+                {view === "people"
+                  ? "Add person"
+                  : view === "projects"
+                    ? "New project"
+                    : "Plan work"}
+              </button>
+            </div>
+          )}
         </header>
         {error && (
           <div className="error global-error" role="alert">
@@ -773,134 +796,159 @@ export default function Workspace({ account }: { account?: string }) {
           </div>
         )}
         <section className="work-area" key={view}>
-          <div className="workspace-toolbar">
-            {view === "schedule" || view === "capacity" ? (
-              <div className="date-controls">
-                <strong title={rangeLabel}>{dateLabel}</strong>
-                <div className="date-nav">
-                  <button
-                    aria-label="Previous two weeks"
-                    onClick={() => setStart(addDays(start, -14))}
-                  >
-                    <ChevronLeft size={15} />
-                  </button>
-                  <button
-                    aria-label="Next two weeks"
-                    onClick={() => setStart(addDays(start, 14))}
-                  >
-                    <ChevronRight size={15} />
-                  </button>
-                </div>
-                <button
-                  className="today-button"
-                  onClick={() => setStart(monday(today(org?.timezone)))}
-                >
-                  Today
-                </button>
-              </div>
-            ) : (
-              <div className="view-label">
-                {view === "projects" ? "All projects" : "Everyone"}
-              </div>
-            )}
-            <div className="filters">
-              <div className="search">
-                <Search size={14} />
-                <input
-                  ref={search}
-                  aria-label="Search workspace"
-                  placeholder="Search…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                />
-                {query && (
-                  <button
-                    className="icon-button"
-                    aria-label="Clear search"
-                    onClick={() => setQuery("")}
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-                <kbd>⌘ K</kbd>
-              </div>
-              {view !== "projects" && (
-                <Dropdown.Root>
-                  <Dropdown.Trigger
-                    className={`filter-trigger ${team !== "All teams" || onlyConflicts ? "is-filtered" : ""}`}
-                  >
-                    <SlidersHorizontal size={14} />
-                    <span>{team === "All teams" ? "Filter" : team}</span>
-                    {onlyConflicts && <span className="filter-count">1</span>}
-                  </Dropdown.Trigger>
-                  <Dropdown.Portal>
-                    <Dropdown.Content
-                      className="menu"
-                      align="end"
-                      sideOffset={8}
-                    >
-                      <Dropdown.Label className="menu-label">
-                        Teams
-                      </Dropdown.Label>
-                      {[
-                        "All teams",
-                        ...new Set(allPeople.map((p) => p.team)),
-                      ].map((t) => (
-                        <Dropdown.CheckboxItem
-                          key={t}
-                          checked={team === t}
-                          onCheckedChange={() => setTeam(t)}
-                        >
-                          {t}
-                          {team === t && <Check size={14} />}
-                        </Dropdown.CheckboxItem>
-                      ))}
-                      <Dropdown.Separator />
-                      <Dropdown.CheckboxItem
-                        checked={onlyConflicts}
-                        onCheckedChange={setOnlyConflicts}
+          {view === "mywork" && (
+            <MyWork
+              orgId={orgId}
+              data={data}
+              onChanged={refreshWorkspace}
+              onTimesheet={() => setView("timesheets")}
+            />
+          )}
+          {view === "timesheets" && (
+            <Timesheets
+              orgId={orgId}
+              data={data}
+              onChanged={refreshWorkspace}
+            />
+          )}
+          {view === "reports" && <Reports orgId={orgId} data={data} />}
+          {!featureView && (
+            <>
+              <div className="workspace-toolbar">
+                {view === "schedule" || view === "capacity" ? (
+                  <div className="date-controls">
+                    <strong title={rangeLabel}>{dateLabel}</strong>
+                    <div className="date-nav">
+                      <button
+                        aria-label="Previous two weeks"
+                        onClick={() => setStart(addDays(start, -14))}
                       >
-                        Over capacity only{onlyConflicts && <Check size={14} />}
-                      </Dropdown.CheckboxItem>
-                    </Dropdown.Content>
-                  </Dropdown.Portal>
-                </Dropdown.Root>
-              )}
-            </div>
-          </div>
-          {(team !== "All teams" || onlyConflicts) && view !== "projects" && (
-            <div className="active-filters">
-              {team !== "All teams" && (
-                <button
-                  className="filter-chip"
-                  onClick={() => setTeam("All teams")}
-                >
-                  {team}
-                  <X size={12} />
-                </button>
-              )}
-              {onlyConflicts && (
-                <button
-                  className="filter-chip"
-                  onClick={() => setOnlyConflicts(false)}
-                >
-                  Over capacity
-                  <X size={12} />
-                </button>
-              )}
-              <span>
-                {people.length} {people.length === 1 ? "person" : "people"}
-              </span>
-              <button
-                className="clear-filters"
-                onClick={() => {
-                  setTeam("All teams");
-                  setOnlyConflicts(false);
-                }}
-              >
-                Clear
-              </button>
-            </div>
+                        <ChevronLeft size={15} />
+                      </button>
+                      <button
+                        aria-label="Next two weeks"
+                        onClick={() => setStart(addDays(start, 14))}
+                      >
+                        <ChevronRight size={15} />
+                      </button>
+                    </div>
+                    <button
+                      className="today-button"
+                      onClick={() => setStart(monday(today(org?.timezone)))}
+                    >
+                      Today
+                    </button>
+                  </div>
+                ) : (
+                  <div className="view-label">
+                    {view === "projects" ? "All projects" : "Everyone"}
+                  </div>
+                )}
+                <div className="filters">
+                  <div className="search">
+                    <Search size={14} />
+                    <input
+                      ref={search}
+                      aria-label="Search workspace"
+                      placeholder="Search…"
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                    />
+                    {query && (
+                      <button
+                        className="icon-button"
+                        aria-label="Clear search"
+                        onClick={() => setQuery("")}
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                    <kbd>⌘ K</kbd>
+                  </div>
+                  {view !== "projects" && (
+                    <Dropdown.Root>
+                      <Dropdown.Trigger
+                        className={`filter-trigger ${team !== "All teams" || onlyConflicts ? "is-filtered" : ""}`}
+                      >
+                        <SlidersHorizontal size={14} />
+                        <span>{team === "All teams" ? "Filter" : team}</span>
+                        {onlyConflicts && (
+                          <span className="filter-count">1</span>
+                        )}
+                      </Dropdown.Trigger>
+                      <Dropdown.Portal>
+                        <Dropdown.Content
+                          className="menu"
+                          align="end"
+                          sideOffset={8}
+                        >
+                          <Dropdown.Label className="menu-label">
+                            Teams
+                          </Dropdown.Label>
+                          {[
+                            "All teams",
+                            ...new Set(allPeople.map((p) => p.team)),
+                          ].map((t) => (
+                            <Dropdown.CheckboxItem
+                              key={t}
+                              checked={team === t}
+                              onCheckedChange={() => setTeam(t)}
+                            >
+                              {t}
+                              {team === t && <Check size={14} />}
+                            </Dropdown.CheckboxItem>
+                          ))}
+                          <Dropdown.Separator />
+                          <Dropdown.CheckboxItem
+                            checked={onlyConflicts}
+                            onCheckedChange={setOnlyConflicts}
+                          >
+                            Over capacity only
+                            {onlyConflicts && <Check size={14} />}
+                          </Dropdown.CheckboxItem>
+                        </Dropdown.Content>
+                      </Dropdown.Portal>
+                    </Dropdown.Root>
+                  )}
+                </div>
+              </div>
+              {(team !== "All teams" || onlyConflicts) &&
+                view !== "projects" && (
+                  <div className="active-filters">
+                    {team !== "All teams" && (
+                      <button
+                        className="filter-chip"
+                        onClick={() => setTeam("All teams")}
+                      >
+                        {team}
+                        <X size={12} />
+                      </button>
+                    )}
+                    {onlyConflicts && (
+                      <button
+                        className="filter-chip"
+                        onClick={() => setOnlyConflicts(false)}
+                      >
+                        Over capacity
+                        <X size={12} />
+                      </button>
+                    )}
+                    <span>
+                      {people.length}{" "}
+                      {people.length === 1 ? "person" : "people"}
+                    </span>
+                    <button
+                      className="clear-filters"
+                      onClick={() => {
+                        setTeam("All teams");
+                        setOnlyConflicts(false);
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+            </>
           )}
           {view === "schedule" && (
             <Timeline
@@ -1192,53 +1240,55 @@ export default function Workspace({ account }: { account?: string }) {
             />
           )}
         </section>
-        <footer className="workspace-footer">
-          {view === "schedule" || view === "capacity" ? (
-            <>
-              <div className="plan-summary" aria-label="Capacity summary">
-                <span>
-                  <i className="summary-dot" />
-                  <strong>
-                    {total ? `${Math.round((planned / total) * 100)}%` : "—"}
-                  </strong>{" "}
-                  planned
-                </span>
-                <span>
-                  <strong>{hours(available)}h</strong> available
-                </span>
-                <button
-                  className={conflicts ? "over" : ""}
-                  aria-pressed={onlyConflicts}
-                  onClick={() => setOnlyConflicts(!onlyConflicts)}
-                >
-                  {conflicts > 0 && <AlertTriangle size={12} />}
-                  {conflicts ? `${conflicts} over capacity` : "No overloads"}
+        {!featureView && (
+          <footer className="workspace-footer">
+            {view === "schedule" || view === "capacity" ? (
+              <>
+                <div className="plan-summary" aria-label="Capacity summary">
+                  <span>
+                    <i className="summary-dot" />
+                    <strong>
+                      {total ? `${Math.round((planned / total) * 100)}%` : "—"}
+                    </strong>{" "}
+                    planned
+                  </span>
+                  <span>
+                    <strong>{hours(available)}h</strong> available
+                  </span>
+                  <button
+                    className={conflicts ? "over" : ""}
+                    aria-pressed={onlyConflicts}
+                    onClick={() => setOnlyConflicts(!onlyConflicts)}
+                  >
+                    {conflicts > 0 && <AlertTriangle size={12} />}
+                    {conflicts ? `${conflicts} over capacity` : "No overloads"}
+                  </button>
+                </div>
+                <button className="canvas-hint" onClick={() => setHelp(!help)}>
+                  {view === "schedule"
+                    ? access.plan
+                      ? "Click or drag on the schedule to plan work"
+                      : "Read-only schedule"
+                    : "Confirmed work · Net working capacity"}
+                  <CircleHelp size={12} />
                 </button>
-              </div>
-              <button className="canvas-hint" onClick={() => setHelp(!help)}>
-                {view === "schedule"
-                  ? access.plan
-                    ? "Click or drag on the schedule to plan work"
-                    : "Read-only schedule"
-                  : "Confirmed work · Net working capacity"}
-                <CircleHelp size={12} />
-              </button>
-            </>
-          ) : (
-            <>
-              <span>
-                {view === "projects"
-                  ? `${projects.length} projects in your workspace`
-                  : `${people.length} people in this view`}
-              </span>
-              <span>
-                {(view === "projects" ? access.plan : access.administer)
-                  ? `Click a ${view === "projects" ? "project" : "person"} to edit`
-                  : "Read-only access"}
-              </span>
-            </>
-          )}
-        </footer>
+              </>
+            ) : (
+              <>
+                <span>
+                  {view === "projects"
+                    ? `${projects.length} projects in your workspace`
+                    : `${people.length} people in this view`}
+                </span>
+                <span>
+                  {(view === "projects" ? access.plan : access.administer)
+                    ? `Click a ${view === "projects" ? "project" : "person"} to edit`
+                    : "Read-only access"}
+                </span>
+              </>
+            )}
+          </footer>
+        )}
         {help && (
           <div className="help-panel">
             <button

@@ -18,9 +18,9 @@ type Team = { members: Member[]; invitations: Invitation[] };
 const roles: Role[] = ["owner", "admin", "planner", "member", "viewer"];
 const descriptions: Record<Role, string> = {
   owner: "Workspace ownership and all settings",
-  admin: "People, calendars, financial rates, and team access",
+  admin: "People, calendars, financial rates, team access, and approvals",
   planner: "Projects, allocations, and time off",
-  member: "View people, projects, and schedules",
+  member: "View schedules, record own time, and request time off",
   viewer: "Read-only workspace access",
 };
 export function TeamDialog({
