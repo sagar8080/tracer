@@ -14,6 +14,8 @@ For local development, use these exact application URLs consistently:
 - Allowed Logout URLs: `http://127.0.0.1:3000`
 - Allowed Web Origins: `http://127.0.0.1:3000`
 
+The public homepage is `/`; the authenticated workspace is `/app`. Login/signup defaults to `/app`, while invitation sign-in preserves `/join` until acceptance. The callback remains `/auth/callback`, so this route split requires no new Auth0 application settings.
+
 Enable your desired login connection for this application. Enable the Refresh Token grant for the application and **Allow Offline Access** for the API; Kivo requests `openid profile email offline_access`. Configure refresh-token rotation in Auth0. Use HTTPS versions of these URLs for deployment. Do not mix `localhost` and `127.0.0.1` in one session.
 
 Invitations require a verified email address. Add and deploy a **Post Login Action**, then attach it to the Login flow:
