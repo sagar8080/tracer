@@ -442,7 +442,7 @@ export default function Workspace({ account }: { account?: string }) {
         </span>
         <h1>{error ? "Workspace unavailable" : "Opening your workspace…"}</h1>
         {account && error && (
-          <a className="text-button" href="/auth/login">
+          <a className="text-button" href="/auth/login?returnTo=%2Fapp">
             Sign in again
           </a>
         )}

@@ -30,6 +30,7 @@ export function auth0() {
     );
   client ??= new Auth0Client({
     appBaseUrl: base.origin,
+    signInReturnToPath: "/app",
     authorizationParameters: {
       audience: process.env.AUTH0_AUDIENCE!,
       scope: "openid profile email offline_access",

@@ -23,7 +23,7 @@ export function Join({ signedIn }: { signedIn: boolean }) {
       );
       sessionStorage.removeItem("kivo.invitation");
       sessionStorage.setItem("kivo.selected-org", result.orgId);
-      window.location.assign("/");
+      window.location.assign("/app");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not accept invitation");
       setBusy(false);

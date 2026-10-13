@@ -99,7 +99,10 @@ export function Welcome({
               Verify {status.email} before creating or joining a workspace. Then
               sign in again to refresh your account.
             </p>
-            <a className="primary" href="/auth/login?prompt=login&returnTo=%2F">
+            <a
+              className="primary"
+              href="/auth/login?prompt=login&returnTo=%2Fapp"
+            >
               I’ve verified my email
             </a>
           </>
