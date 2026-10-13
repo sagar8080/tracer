@@ -57,6 +57,14 @@ At narrower widths, the sidebar becomes an icon rail with accessible labels. The
 
 Preserve visible keyboard focus, semantic buttons, form labels, Radix focus trapping/restoration, keyboard alternatives to drag/resize, readable error feedback, and reduced motion. Hidden hover controls must remain reachable with a keyboard. Do not replace accessibility with tooltip-only interactions.
 
+## Public product page
+
+The public homepage uses the same Quiet Canvas colors, self-hosted Geist, project palette and restrained interaction grammar. Its editorial type scale is separate from application chrome: 40–80px hero, 32–56px section headings, and 13–16px explanatory copy. This scale is for the marketing feature only; workspace headers and data retain their compact hierarchy.
+
+Use one continuous page, generous spacing, thin section dividers and real product examples. Bordered figures represent product artifacts, not feature-card grids. Navigation and signup remain clear at desktop and mobile sizes. Keep the public story about customer work; technical contracts belong in relevant help, not the hero. Illustrative data must be labelled. Never invent customers, testimonials, performance statistics, pricing, certifications or capabilities. Public examples reuse the application's pure calculations and do not access or mutate a tenant.
+
+The homepage at `/` remains available when signed in. `/app` owns the authenticated workspace; signup/login return there and invitation acceptance preserves its selected organization. The marketing feature owns its components and scoped styles rather than adding page-specific rules to global workspace CSS.
+
 ## Acceptance checklist for future work
 
 - The screen reads as one canvas, with one location header and one contextual toolbar.
