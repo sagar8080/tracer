@@ -1,0 +1,202 @@
+# Kivo architecture and data model
+
+Kivo runs a Next.js browser application and an Axum backend against PostgreSQL. The backend is a Cargo workspace with eight crates: two independent executables, three capability libraries, and three infrastructure libraries. Shared code is linked through explicit library contracts; runtime processes can be deployed and scaled independently as they are introduced. The browser-local demo is a separate storage adapter, explicitly labeled and not shared storage or authentication.
+
+## Crate and process boundaries
+
+Implemented October 13, 2026. Separation of concerns is a project requirement. HTTP composition, capability workflows, SQL transactions and provider clients now live at the boundaries below. Public HTTP shapes and the existing local development commands are preserved.
+
+### Process ownership
+
+Each independently runnable process gets its own executable crate. Its entrypoint owns configuration, tracing, dependency construction, resource limits, startup and graceful shutdown. Business logic belongs in library crates, so processes can reuse behavior without reaching into each other's implementation.
+
+| Executable crate | Responsibility | Delivery status |
+| --- | --- | --- |
+| `apps/api` / `kivo-api` | HTTP transport, verified request context, routing, DTO mapping and dependency composition. | Implemented; thin HTTP handlers and composition. |
+| `apps/migrator` / `kivo-migrator` | Apply the ordered schema migrations through Neon's direct connection and exit with a meaningful status. | Implemented; owns the unchanged ordered SQL stream. |
+| `apps/worker` / `kivo-worker` | Execute durable background jobs, exports and cleanup with bounded concurrency, retries and idempotency. | Introduce with the first durable background workflow. |
+| `apps/realtime` / `kivo-realtime-server` | Authorize subscriptions, deliver committed changes, apply backpressure and recover missed revisions. | Implemented; single-use subscription tickets, bounded delivery and durable per-tenant replay. |
+
+A task with a distinct deployment, credential boundary or scaling profile receives another executable crate when implemented. For example, a high-volume connector can run separately from file cleanup. An async function or ordinary business workflow does not automatically require a new process. Distinct processes never share mutable in-process state as their correctness mechanism.
+
+### Initial library boundaries
+
+These library crates contain the responsibilities implemented today. Future worker processes remain intentionally absent.
+
+| Library crate | Owns | Public boundary / dependencies |
+| --- | --- | --- |
+| `crates/tenancy` / `kivo-tenancy` | Organization and membership types, actor context and role-policy decisions. | Typed tenant/actor context and access decisions; no HTTP or provider SDKs. Identity remains a separate capability. |
+| `crates/identity` / `kivo-identity` | Verified issuer/subject identity and account directory ports. | Pure contracts; depends only on tenancy and value types. |
+| `crates/auth0` / `kivo-auth0` | RS256/JWKS verification and bounded key refresh. | Implements the identity verifier; no database or HTTP routing dependency. |
+| `crates/realtime` / `kivo-realtime` | Ticket and authorized committed-event replay contracts. | Pure ports; PostgreSQL implements durable storage. |
+| `crates/planning` / `kivo-planning` | People, projects, allocations, working calendars, leave, capacity rules and planning use cases. | Typed planning commands, results and atomic persistence ports. Internally separate people/projects/scheduling/capacity modules; depends on tenancy contracts. |
+| `crates/files` / `kivo-files` | File reservation, completion and download use cases; metadata and object-store contracts. | Typed file lifecycle operations and storage capabilities; depends on tenancy contracts. |
+| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, planning, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
+| `crates/rate-limit` / `kivo-rate-limit` | Rate-limit port, explicit allow/deny/unavailable outcomes, and Upstash REST implementation in a separate adapter module. | No authorization authority or scheduling locks. Its small stable interface is consumed by the HTTP process. Split additional adapters into their own crates when introduced. |
+| `crates/object-storage-s3` / `kivo-object-storage-s3` | Neon S3 endpoint configuration, signing, object verification and storage client lifecycle. | Implements the file capability's object-store port; provider SDK types remain private. |
+
+One root Cargo workspace provides shared dependency versions, lint policy and a lockfile. Build and test individual packages with `-p`; validate the whole workspace before integration. Every package declares its own direct dependencies and can be built without unrelated process entrypoints. Shared versions simplify a coordinated monorepo release; they do not require deploying all executables together.
+
+Keep the dependency direction explicit:
+
+```text
+kivo-planning ────────────────> kivo-tenancy
+kivo-files ───────────────────> kivo-tenancy
+kivo-postgres ────────────────> tenancy / identity / planning / files / realtime contracts
+kivo-object-storage-s3 ───────> files object-store contract
+kivo-api ────────────────────> capability services + selected adapters
+kivo-migrator ────────────────> PostgreSQL migration support
+kivo-realtime-server ────────> realtime contract + PostgreSQL adapter
+kivo-auth0 ──────────────────> identity verifier contract
+```
+
+Capability crates never depend on concrete adapters or another executable. Avoid a catch-all `core`, `shared`, `common` or `utils` package. Share a type only when its ownership and compatibility policy are clear. Keep transport DTOs distinct from persistence rows; `sqlx::FromRow` derives exist only on adapter-local rows.
+
+### Replaceable adapters and contracts
+
+Plug-and-play is implemented with capability-owned Rust traits and typed values, injected by constructors at the process entrypoint. Select implementations from validated configuration at startup. Keep trait surfaces limited to real operations needed by their consumers; select generics or trait objects per caller without exposing provider SDK types. Runtime loading of third-party Rust binaries is outside this plan.
+
+For each port, document inputs, tenant context, outputs, error categories, timeout/cancellation behavior, idempotency and consistency guarantees. An object-store replacement must satisfy the existing signed-header, conditional-write, private-access and metadata-verification behavior. A rate limiter must preserve atomic expiry, limit windows and explicit outage behavior. A persistence replacement must preserve transaction guarantees. Contract tests use local fixtures where useful and real PostgreSQL for transactional guarantees; mock success is not provider parity.
+
+Configuration fails explicitly for missing or incompatible required adapters. Optional capabilities are explicitly disabled, with a corresponding readiness state; no silent fallback from configured hosted storage to memory or browser data. A schema or trait change cannot silently change a public HTTP contract or queued event shape.
+
+### Transactions, data ownership and independent growth
+
+Neon PostgreSQL remains the source of truth. Capability owners define schema semantics, constraints and permitted mutations. Initially the PostgreSQL adapter uses one shared database to retain composite tenant foreign keys and atomic cross-table work. Crate separation does not require one database or network hop per capability.
+
+Persistence ports represent atomic use cases, not a series of unrelated CRUD calls. Tenant authorization, stable membership checks, calendar/person locks where needed, version comparison, mutation and audit insertion remain in one transaction. The PostgreSQL adapter calls capability-owned pure validation/policy functions against the locked state where a decision depends on concurrent data; it does not reimplement those rules independently. Public ports must not expose `PgPool`, SQL strings or `sqlx::Transaction`.
+
+The file flow preserves its existing boundary: reserve metadata transactionally, perform S3 work outside database locks, then verify and finalize metadata in a separate transaction. An object-store call cannot be made atomic by wrapping it in a PostgreSQL transaction.
+
+One ordered migration stream in `apps/migrator/migrations` is owned operationally by `kivo-migrator`; capability changes contribute migrations to that stream. Move existing migrations byte-for-byte, preserving their version and checksum. Run migrations once as a release step before starting dependent processes. The local API default and legacy `kivo-api migrate` command launch a sibling migrator binary; `npm run dev:api` builds both first. A standalone API with `KIVO_RUN_MIGRATIONS=0` needs no migrator binary. Use additive schema changes and an expand/migrate/contract sequence when old and new process versions may overlap.
+
+Realtime events now commit with their originating database mutation. Before worker processes ship, commit durable jobs with their originating mutations. Consumers assume at-least-once delivery, record idempotency keys, bound retries and recover after a crash. Define tenant, event ID, schema version and relevant entity revision in event envelopes. Prove claim/ack/retry behavior against PostgreSQL before relying on it. Redis may accelerate delivery or hold ephemeral state but cannot be the only record of required work. New processes receive only their required secrets and database permissions.
+
+Frontend feature ownership mirrors capability boundaries: planning and file components call typed application/storage interfaces; pure calendar calculations stay out of JSX. The workspace shell owns navigation and shared context. Feature-owned composers plug into the shell; a global editor must not accumulate every future capability. Existing React files will be extracted incrementally without changing Quiet Canvas or persistence behavior.
+
+### Shared-workspace transaction and process contracts
+
+Implemented after extraction. `0004_shared_workspaces.sql` adds external identities, versioned memberships, hashed invitations, versions for people/projects/organizations, command receipts, monotonic organization revisions, events and single-use socket tickets. Earlier SQL migrations retain their exact bytes and checksums.
+
+Identity resolves by `(issuer, subject)` only. Organization writes take an organization-scoped advisory lock (including missing-row creation) followed by its row lock and membership authorization. This gives all mutations a consistent lock order and ensures revision order matches commit order. The same transaction checks expected versions, persists the change, records audit, records a non-sensitive invalidation event, and stores an idempotency receipt. Replayed requests are authorized again. Financial fields are redacted inside the consistent workspace snapshot for non-admin roles; planner writes cannot supply them.
+
+Invitations are email-bound, hashed, expiring and single-use. Acceptance rechecks the inviter's current authority, the recipient's verified email and tenant membership in the mutation transaction. Membership changes enforce version and last-owner rules. Auth0 never supplies Kivo roles.
+
+`apps/realtime` owns its configuration, connection cap, WebSocket transport, coalescing revision hub, readiness and shutdown. It consumes a one-time PostgreSQL ticket from the first frame, reauthorizes every batch, expires with the access token and replays at most 256 committed events. The browser refetches authoritative data, reconnects with a fresh ticket, preserves draft versions, and ignores obsolete reads while a save or workspace switch is underway. No access token or invitation secret appears in an event.
+
+Feature modules under `apps/web/src/features/identity`, `tenancy`, and `realtime` own login/join, team access/role policy, and subscription lifecycle. The workspace shell composes them. Detailed API and operating policy: [Auth0 setup](auth0-setup.md).
+
+### Extraction and acceptance gates
+
+The extraction is implemented in the five steps below. The evidence and remaining product limitations are recorded in [validation](validation.md#crate-extraction-verification).
+
+1. **Workspace and pure rules.** One root Cargo workspace, lockfile and lint policy govern all eight packages. Tenancy owns actor/role policy; planning owns commands and validation. Persistence derives remain on Postgres row types. The metadata boundary check rejects cycles and forbidden dependencies.
+2. **Atomic PostgreSQL ports.** Capability-owned repository traits express whole transactions. The adapter retains one repeatable-read workspace snapshot and locked authorization/version/mutation/audit writes. Real PostgreSQL integration tests cover tenant isolation, concurrent edits, calendar-aware validation and exact audit counts.
+3. **Providers and file use cases.** File workflows live in `kivo-files`, S3 implements its object-store port, and Upstash implements the rate-limit port. Thin HTTP handlers translate DTOs and errors. Replacement-port workflow tests and local provider fixtures verify error propagation, private-file lifecycle and readiness behavior.
+4. **Dedicated migrator and process wiring.** Migration execution and unchanged SQL live in `apps/migrator`. The API's local compatibility launcher starts that separate binary and fails if it cannot complete. The upgrade test seeds an existing v2 database, preserves its records/ledger, applies v3, reruns idempotently, and rejects checksum drift. No live cloud writes were repeated for extraction.
+5. **Boundary enforcement and browser behavior.** CI is configured to run dependency checks, formatting, Clippy, workspace tests, frontend tests/build, and API/provider integration suites. Local desktop/mobile smoke checks cover persistence, overloads, failed-save recovery and demo Undo. Existing frontend feature extraction remains incremental; this refactor changes no UI implementation. There is no temporary in-process delegation or empty worker/realtime scaffolding.
+
+For later processes, add operational gates as they are built: independent build and start commands, bounded pools/queues, health/readiness, graceful shutdown, job recovery, contract compatibility and observable failure. Do not create empty workers, event buses or adapter abstractions without their first implemented workflow.
+
+## Selected hosted data stack
+
+Decision recorded on 2026-10-13. The experiment uses these three services:
+
+| Service | Responsibility |
+| ------- | -------------- |
+| Neon PostgreSQL | Canonical application data, transactions, tenant isolation, search, analytics and reporting; durable revision events; future durable jobs. |
+| Upstash Redis | Authenticated request rate limiting; future rebuildable caches, ephemeral presence and fan-out. |
+| Neon Object Storage (S3-compatible) | Private file storage for imports, exports and attachments. |
+
+PostgreSQL owns mutation correctness through constraints, transactions and version checks. Redis does not own authoritative data or scheduling locks. Analytics and reporting start with PostgreSQL queries and derived reporting tables; Redshift, Iceberg and a separate analytics database are outside the current scope.
+
+Provider adapters are implemented. The configured experiment passed live checks against Neon PostgreSQL, Upstash Redis and Neon Object Storage on 2026-10-13, including a private-file upload/download round trip and cleanup. Neon Object Storage is the selected object store. The backend uses the AWS Rust SDK for its S3-compatible API, with an explicit Neon HTTPS endpoint and path-style addressing. The local PostgreSQL development setup remains available. See [provider setup](provider-setup.md) for configuration, API contracts and current limits.
+
+Neon runtime connections use a bounded pool and verified TLS for remote hosts. Migrations use a separate direct connection to preserve SQLx session-lock semantics. Upstash atomically rate-limits authenticated requests and returns an explicit service error when configured but unavailable. S3 file reservations and completion audits persist in PostgreSQL; tenant-authorized endpoints issue expiring upload/download URLs, and completion validates object metadata. Provider calls do not hold database transaction locks. `/ready` checks configured dependencies, while `/health` only reports liveness.
+
+## Repository structure
+
+- `apps/web/src/lib`: typed schemas, date/capacity functions, seed data, storage adapters, domain tests.
+- `apps/web/src/components`: application workspace, schedule renderer, Radix editor.
+- `apps/web/src/app/api/workspace`: session-authenticated backend-for-frontend; OAuth tokens remain server-side.
+- `crates/tenancy` and `crates/planning`: actor policy, typed commands, validation and atomic persistence ports.
+- `crates/files`: private-file application workflows and ports.
+- `crates/postgres`: database reads, tenant authorization locks, row mapping and transactions.
+- `crates/rate-limit` and `crates/object-storage-s3`: provider adapters.
+- `apps/api/src/error.rs`: safe HTTP error mapping.
+- `apps/migrator/migrations`: unchanged versioned PostgreSQL schema.
+
+React 19 and TypeScript render the interface; Next.js provides the app shell and Auth0 session bridge. Tailwind CSS is installed through PostCSS, with CSS tokens and semantic classes supplying the visual system. Radix provides dialog focus management and accessible menus. Lucide supplies icons. Rust/Axum owns persistent mutations in API mode. SQLx runs migrations and parameterized queries. Process configuration selects the Postgres, Upstash and S3 adapters explicitly. WebSockets run in their own process; Stripe belongs in a later milestone.
+
+## Current data model
+
+| Entity       | Important fields and ownership                                                                  |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Organization | UUID, name, IANA timezone, USD currency, version, committed revision; tenant root                                            |
+| User         | UUID, email, verified flag; identity keyed separately by provider issuer and subject                                  |
+| Membership   | Organization + user composite key; owner/admin/planner/member/viewer role, version                       |
+| Person       | Tenant, name, role label, team label, daily capacity in minutes, cost rate in cents/hour, color, version |
+| Project      | Tenant, client label, name, status, budget in minutes, bill rate in cents/hour, color, version           |
+| Assignment   | Tenant, person and project IDs, inclusive dates, daily minutes, commitment status, version      |
+| Working calendar | Tenant, person, effective-from date, seven Monday–Sunday minute values, version; one change per person/date. |
+| Absence | Tenant, optional person (null for workspace holiday), category, inclusive dates, optional daily minutes (null for full day), version. |
+| Audit event  | Tenant, actor, entity, action, timestamp; committed with the mutation                           |
+
+Memberships do not imply a schedulable person: viewers and service accounts should not inflate capacity or billing. Projects and people have `(org_id, id)` unique keys. Assignment foreign keys include `org_id`, preventing an assignment from referencing another tenant's person or project even if application code regresses.
+
+`role`, `team`, and `client` are intentionally labels in the first milestone. Extract first-class catalog entities when those records acquire settings, permissions, rate cards, or independent lifecycle. Money is integer minor units; effort is integer minutes. Current rates are planning settings, not historical accounting evidence.
+
+## API contract
+
+The service defaults to `127.0.0.1:4000`; `KIVO_API_BIND` can configure an Auth0 deployment behind a reverse proxy. `KIVO_AUTH_MODE=auth0` verifies each request independently. Development mode requires explicit opt-in and a token of at least 32 characters, remains loopback-only, and is rejected by the web bridge in production. See [Auth0 setup](auth0-setup.md).
+
+- `GET /health`: process health and liveness status. This is not a full dependency readiness probe.
+- `GET /v1/workspace`: memberships and associated organizations, people, projects, allocations for the current identity, using one repeatable-read snapshot.
+- `POST /v1/workspace`: one discriminated command, such as `{ "kind": "assignment", "value": { ... } }`; returns 204 after commit.
+- `deleteAssignment`: requires `id`, `orgId`, and the expected current `version`.
+
+Each command validates fields, locks the membership for stable authorization, applies one mutation, and writes an audit record in the same transaction. Organization/person changes require owner or admin. Project/assignment changes allow planner as well. Organization creation grants its creator ownership. The server never accepts a client-supplied actor ID.
+
+Allocation creation requires version 1. Updates require the stored version to equal the supplied next version minus one. Deletes require an exact current version. A stale mutation returns 409 and leaves the stored allocation intact. People, projects and organizations follow the same version contract. Database constraints are mapped to a generic validation response; SQL details are logged server-side, not exposed in the UI.
+
+The read endpoint includes actor ID and per-organization role/revision metadata. Non-admin readers receive null cost/bill rates. `GET/POST /v1/organizations/{org}/team` manages members and invitations; `POST /v1/invitations/accept` accepts a verified-email invitation; `POST /v1/organizations/{org}/realtime-ticket` issues a one-use subscription ticket. Team commands require a UUID `Idempotency-Key`; planning and file commands support it and all browser mutations supply it.
+
+## Capacity calendars and time off
+
+`0003_capacity.sql` adds effective working calendars and absence records. A person retains the existing Monday–Friday daily-capacity baseline before the earliest applicable calendar. For each date, the latest effective calendar supplies seven Monday–Sunday minute values; zero means non-working. Editing/deleting a calendar recalculates affected planning dates, and deletion restores the preceding calendar or baseline. Baseline person edits still change dates not covered by a calendar; this is not immutable historical accounting.
+
+Time off targets one person; holidays cover the workspace. Null daily minutes means the full working day, otherwise the reduction is clamped to that day's base capacity. Reductions have no time-of-day intervals, so overlapping entries use the maximum daily reduction, not their sum. Holidays therefore override partial leave. Planned effort accrues on calendar working days even when leave/holidays consume all availability. Tentative effort is displayed separately and excluded from committed load. A zero denominator has undefined utilization (shown as a dash), while any committed hours still produce an overload.
+
+The workspace API includes `calendars` and `absences`. Commands `calendar`, `absence`, `deleteCalendar`, and `deleteAbsence` use the existing write route. Inserts require version 1, updates require the next version, and deletes require the current version. Calendar person identity and absence category cannot change on update. Owner/admin roles manage working calendars and holidays; owner/admin/planner roles manage individual time off. Tenant-composite foreign keys reject foreign-person references. A locked person row serializes calendar changes with allocation working-day validation; membership locks protect authorization. Every successful mutation writes its audit event in the same transaction.
+
+The Capacity surface offers a daily availability grid with per-day source detail, a dated leave register, and editable calendar history. The timeline shows leave and net-capacity warnings, allocation previews use the same calendar math, and project planned-hour totals count the person's actual working days. The frontend narrows calculations to the person and visible date range before daily aggregation; pagination and large-team benchmarks remain future work.
+
+## Browser behavior and persistence
+
+Default demo mode stores one schema-validated document in `localStorage`. Invalid stored data is preserved and surfaces an error rather than being reset. Storage failure prevents state advancement. Cross-tab storage events refresh the view, but concurrent browser-local edits are last-write-wins. Local undo restores one prior document and is intentionally unavailable in API mode.
+
+API mode loads server data and sends one command per change. There is no automatic fallback to demo data on server failure. Writes show a saving state and refresh the authoritative snapshot after success. Failed requests surface a reload action rather than allowing further edits against a potentially stale plan. A mutation whose refresh fails is explicitly reported as saved-but-not-refreshed. Reload is required before editing again; UUID idempotency keys protect one automatic retry; confirmed 409/422/403 responses refresh the current snapshot while preserving the draft and its original version.
+
+## Scheduling workspace implementation
+
+A two-week viewport bounds horizontal date work. People stay pinned on the left and dates stay pinned while scrolling. Overlapping allocations are packed into separate lanes with variable row heights. Rows are windowed with overscan, reducing mounted elements for larger teams. Pointer capture supports move and end-date resize; editing dates/person in the panel is the keyboard alternative. Alt + Left/Right moves a focused allocation one calendar day. Dragging across empty days previews a date range and opens a centered composer with the person and inclusive dates pre-filled. Allocation previews follow the pointer in both axes and highlight the destination person; Escape cancels a gesture. Radix traps composer focus, focuses the title input, and restores the initiating control on close. Cmd/Ctrl+Enter submits through native form validation. The shared Quiet Canvas theme is defined in `docs/design-system.md`.
+
+The current capacity implementation is deliberately simple and scans allocations for each day. Windowing alone does not establish performance at thousands of assignments. Before the scale milestone, index allocations by person and date, fetch bounded ranges, avoid full-workspace responses, cache derived counts by revision, and measure both compute time and interaction latency.
+
+Proposed performance gates on a documented mid-range laptop: 1,000 people / 20,000 allocations, two-week viewport, p95 input-to-paint below 100 ms, drag frames below 16.7 ms when feasible, and fewer than 2,500 schedule DOM nodes. These are targets, not benchmarks already met.
+
+## Planned extensions
+
+**Calendar extensions:** contract start/end dates, regional holiday feeds, leave requests and approval, recurring leave, and interval-based partial days. The current implementation supports manual workspace holidays and recorded time off, not HR approvals or historical financial snapshots.
+
+**Project scope:** phases, milestones, staffing demands, placeholder roles, dependencies, explicit billable flags, client entities and rate cards. Separate tentative demand from approved commitments.
+
+**Time and financials:** actual time entries, approval/lock periods, effective rates snapshotted on approved work, versioned budgets, currency-specific minor units, and explicit exchange-rate sources. Fixed-fee margin and time-and-materials revenue use different formulas. Never conflate planned revenue with recognized revenue.
+
+**Identity extensions:** tenant quotas, scoped API keys, richer member time-entry permissions and enterprise identity policy. Tenant RLS may add defense in depth after the application contract and connection-pool transaction settings are tested.
+
+**Realtime extensions:** paginated snapshots and changed-range fetches, load-tested connection scaling, retention/cleanup, and optional ephemeral presence. Current replicas independently observe the durable database revision log; Redis fan-out may reduce polling at larger scale but cannot own correctness.
+
+**Integrations:** encrypted OAuth credentials, per-tenant scopes, external ID mappings, inbound idempotency, sync cursors, backoff, explicit one-way/two-way semantics, and reconciliation. Calendar events should not create duplicate demand on each poll.
+
+**Billing:** Stripe customer/subscription records, verified webhook signatures, an event ledger, idempotent entitlement updates, and a clear scheduled-person definition. No billing secrets or trusted entitlement decisions in the browser.
