@@ -151,3 +151,15 @@ impl From<kivo_reporting::Error> for ApiError {
         }
     }
 }
+
+impl From<kivo_agents::Error> for ApiError {
+    fn from(e: kivo_agents::Error) -> Self {
+        match e {
+            kivo_agents::Error::Unauthorized => Self::Unauthorized,
+            kivo_agents::Error::Forbidden => Self::Forbidden,
+            kivo_agents::Error::Conflict => Self::Conflict,
+            kivo_agents::Error::Invalid(m) => Self::Invalid(m),
+            kivo_agents::Error::Unavailable => Self::Unavailable("Agent services are unavailable"),
+        }
+    }
+}

@@ -1,8 +1,11 @@
+mod agent_tools;
+mod agents;
 mod auth;
 mod config;
 mod error;
 mod files;
 mod leave_requests;
+mod mcp;
 mod migration;
 mod onboarding;
 mod reporting;
@@ -25,6 +28,7 @@ use kivo_tenancy::{Actor, DevelopmentIdentity};
 use std::time::Duration;
 #[derive(Clone)]
 struct AppState {
+    web_origin: String,
     database: Postgres,
     planning: kivo_planning::Service<Postgres>,
     auth: auth::Authentication,
@@ -180,6 +184,7 @@ async fn main() -> anyhow::Result<()> {
         "Provider adapters configured; use /ready to check connectivity"
     );
     let state = AppState {
+        web_origin: config.web_origin,
         database: database.clone(),
         planning: kivo_planning::Service::new(database.clone()),
         auth,
@@ -192,6 +197,31 @@ async fn main() -> anyhow::Result<()> {
             get(|| async { Json(serde_json::json!({"status":"ok"})) }),
         )
         .route("/v1/workspace", get(read).post(write))
+        .route(
+            "/v1/organizations/{org}/agents",
+            get(agents::read).post(agents::write),
+        )
+        .route("/v1/agent-sessions", post(agents::exchange))
+        .route(
+            "/v1/organizations/{org}/schedule",
+            get(agent_tools::schedule),
+        )
+        .route(
+            "/v1/organizations/{org}/capacity/{person}",
+            get(agent_tools::capacity),
+        )
+        .route(
+            "/v1/organizations/{org}/proposals",
+            get(agent_tools::proposals).post(agent_tools::write),
+        )
+        .route(
+            "/v1/organizations/{org}/proposals/{id}",
+            get(agent_tools::proposal),
+        )
+        .route(
+            "/v1/organizations/{org}/mcp",
+            post(mcp::handle).get(mcp::no_stream).delete(mcp::no_stream),
+        )
         .route(
             "/v1/onboarding",
             get(onboarding::status).post(onboarding::setup),

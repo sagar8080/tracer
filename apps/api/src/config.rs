@@ -10,6 +10,7 @@ use uuid::Uuid;
 pub struct Config {
     pub auth0: Option<kivo_auth0::Config>,
     pub bind: String,
+    pub web_origin: String,
     pub database: DatabaseConfig,
     pub run_migrations: bool,
     pub user: Uuid,
@@ -134,9 +135,16 @@ impl Config {
             );
             None
         };
+        let web_origin = value("KIVO_WEB_ORIGIN").unwrap_or_else(|| "http://127.0.0.1:3000".into());
+        let origin = service_url(&web_origin)?;
+        ensure!(
+            origin.path() == "/" && origin.query().is_none() && origin.fragment().is_none(),
+            "KIVO_WEB_ORIGIN must be an origin without a path"
+        );
         Ok(Self {
             auth0,
             bind,
+            web_origin: origin.origin().ascii_serialization(),
             database: DatabaseConfig::from_lookup(&get)?,
             run_migrations: match value("KIVO_RUN_MIGRATIONS").as_deref() {
                 None => mode == "development",
