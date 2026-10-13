@@ -108,16 +108,19 @@ Do this with the runtime stopped, then restart and reload. The original developm
 
 ## Role policy
 
-| Capability | Owner | Admin | Planner | Member / Viewer |
-| --- | --- | --- | --- | --- |
-| Read plans and capacity | Yes | Yes | Yes | Yes |
-| Projects, allocations, individual time off, files | Yes | Yes | Yes | Read only |
-| People, working calendars, workspace holidays/settings | Yes | Yes | No | No |
-| Read/write financial rates | Yes | Yes | No | No |
-| Manage planner/member/viewer access | Yes | Yes | No | No |
-| Manage owners/admins | Yes | No | No | No |
+| Capability | Owner | Admin | Planner | Member | Viewer |
+| --- | --- | --- | --- | --- | --- |
+| Read plans, capacity and hour reports | Yes | Yes | Yes | Yes | Yes |
+| Projects, allocations, individual time off, files | Yes | Yes | Yes | Read only | Read only |
+| People, working calendars, holidays/settings and enrollment | Yes | Yes | No | No | No |
+| Read/write financial rates | Yes | Yes | No | No | No |
+| Manage planner/member/viewer access | Yes | Yes | No | No | No |
+| Manage owners/admins | Yes | No | No | No | No |
+| Record and submit own time with linked profile | Yes | Yes | Yes | Yes | No |
+| Request own leave with linked profile | Yes | Yes | Yes | Yes | No |
+| Review detailed team time and leave | Yes | Yes | No | No | No |
 
-The last owner cannot be demoted or removed. Member and Viewer have identical permissions for the capabilities currently shipped; time-entry permissions are a later milestone. Role changes are checked in PostgreSQL for every request and subscription. Rates are `null` in unauthorized workspace responses and cannot be set by a planner.
+The last owner cannot be demoted or removed. My work and self-service resolve the actor's person through the administrator-controlled enrollment link. Members cannot select another person's identity when recording time or requesting leave. Submitted/approved time entries are locked; owners/admins can return a submitted sheet with a reason, and approved sheets remain locked. Only approved leave changes capacity. Current roles are checked in PostgreSQL on every write and subscription, including receipt retries. Rates remain `null` in unauthorized workspace responses and cannot be set by a planner.
 
 ## Operational contract
 

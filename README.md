@@ -1,6 +1,6 @@
 # Kivo
 
-A resource planning workspace for people, projects, and team capacity. Includes a local demo and PostgreSQL-backed shared workspaces with Auth0 sessions, team access, capacity planning, versioned edits and live updates. Time tracking, financial forecasts, and billing are later milestones. Hosted Auth0 configuration is required before shared sign-in can run against your tenant.
+A resource planning workspace for people, projects, and team capacity. Includes a local demo and PostgreSQL-backed shared workspaces with Auth0 sessions, team access, capacity planning, versioned edits and live updates. Shared workspaces include member self-service, weekly timesheets, leave approvals and planned-versus-actual hour reports. Financial forecasts and billing are later milestones. Hosted Auth0 configuration is required before shared sign-in can run against your tenant.
 
 ## Run the workspace
 
@@ -20,6 +20,12 @@ Create and edit people, projects, and organizations; click a day or drag across 
 Open **Capacity** for daily availability and overload breakdowns. In **Working calendars**, expand a person and schedule a calendar change with its effective date and hours for each weekday. **Time off & holidays** manages full-day or partial-day leave and workspace holidays. Leave appears on the scheduling timeline and reduces capacity without erasing planned work. Calendar changes also update planned project hours.
 
 Calendar and time-off changes persist in both local demo and API modes. API writes use tenant constraints, role checks, version checks and transactional audit records. The capacity migration runs with the existing migration command; no additional provider credentials are needed.
+
+## Member self-service
+
+In a shared workspace, link an account to a person through **Team access → Add to schedule**. **My work** shows that person's assignments, availability and upcoming time off. **Timesheets** records hours by project and billable status, then submits the week for review. Owners/admins use **Team time** and **Leave requests** to approve or return submissions. Approved timesheets lock; approved leave updates planning capacity. **Reports** compares plans, recorded/approved time, utilization and project hour budgets, with date filters and CSV export. Viewer remains read-only.
+
+These workflows require the API and Auth0 shared workspace configuration. The browser-only demo continues to support scheduling and capacity.
 
 ## Run with PostgreSQL
 
@@ -77,4 +83,4 @@ See [validation evidence](docs/validation.md) for executed checks and limits. Br
 - [Architecture, data model, and API boundaries](docs/architecture.md)
 - [Crate boundaries and modular architecture](docs/architecture.md#crate-and-process-boundaries)
 
-Next milestones are actual time tracking, financial forecasts, integrations and billing. Neon PostgreSQL is canonical storage; analytics and reporting remain in PostgreSQL. Upstash is optional request limiting, Neon Object Storage stores private files, and a separate realtime process delivers committed PostgreSQL changes. See [Auth0 and shared workspace setup](docs/auth0-setup.md) for configuration, role policy, retry/reconnect guarantees and operational limits.
+Next milestones are financial forecasts, integrations, billing, bounded schedule queries and scale benchmarks. Neon PostgreSQL is canonical storage; analytics and reporting remain in PostgreSQL. Upstash is optional request limiting, Neon Object Storage stores private files, and a separate realtime process delivers committed PostgreSQL changes. See [Auth0 and shared workspace setup](docs/auth0-setup.md) for configuration, role policy, retry/reconnect guarantees and operational limits.

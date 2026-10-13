@@ -14,7 +14,7 @@ The canonical architecture plan is [docs/architecture.md](docs/architecture.md#c
 - Frontend feature modules follow the same ownership boundaries: components render and collect input, domain modules calculate/validate, and storage adapters perform I/O. Share the Quiet Canvas primitives without growing a catch-all workspace/editor component for every feature.
 - Before implementing a feature, identify its owning crate/module, public contract, data owner and transaction boundary. Update the architecture plan when those boundaries change. Prove adapter semantics with focused contract/integration tests rather than adding abstraction without a consumer.
 
-The backend now uses the root Cargo workspace: `apps/api`, `apps/migrator` and `apps/realtime` compose the ten library crates under `crates/`. Run `npm run check:boundaries` and `cargo test --locked --workspace` when changing crate contracts. Migration SQL lives in `apps/migrator/migrations`; never edit an applied migration. Create future executable crates when their process is actually built, with no empty service scaffolding.
+The backend now uses the root Cargo workspace: `apps/api`, `apps/migrator` and `apps/realtime` compose the thirteen library crates under `crates/`. Run `npm run check:boundaries` and `cargo test --locked --workspace` when changing crate contracts. Migration SQL lives in `apps/migrator/migrations`; never edit an applied migration. Create future executable crates when their process is actually built, with no empty service scaffolding.
 
 ## Product design
 

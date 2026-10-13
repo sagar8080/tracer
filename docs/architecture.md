@@ -26,13 +26,16 @@ These library crates contain the responsibilities implemented today. Future work
 | Library crate | Owns | Public boundary / dependencies |
 | --- | --- | --- |
 | `crates/tenancy` / `kivo-tenancy` | Organization and membership types, actor context and role-policy decisions. | Typed tenant/actor context and access decisions; no HTTP or provider SDKs. Identity remains a separate capability. |
+| `crates/time-tracking` / `kivo-time-tracking` | Member time ownership, weekly submission states, entry validation and approval rules. | Atomic repository port; depends on tenancy, with no SQL/HTTP types. |
+| `crates/leave-requests` / `kivo-leave-requests` | Member leave request and approval workflows. | Atomic repository port; depends on tenancy and planning contracts. Approved absence and review commit together. |
+| `crates/reporting` / `kivo-reporting` | Hour-based planned/actual aggregates and calendar-aware capacity. | Pure calculations and snapshot repository port; depends on tenancy, planning and time-tracking value types. |
 | `crates/onboarding` / `kivo-onboarding` | Personal/team workspace setup and explicit membership-to-person enrollment. | Pure typed workflows and atomic repository ports; depends on tenancy and planning contracts. No process or provider dependencies. |
 | `crates/identity` / `kivo-identity` | Verified issuer/subject identity and account directory ports. | Pure contracts; depends only on tenancy and value types. |
 | `crates/auth0` / `kivo-auth0` | RS256/JWKS verification and bounded key refresh. | Implements the identity verifier; no database or HTTP routing dependency. |
 | `crates/realtime` / `kivo-realtime` | Ticket and authorized committed-event replay contracts. | Pure ports; PostgreSQL implements durable storage. |
 | `crates/planning` / `kivo-planning` | People, projects, allocations, working calendars, leave, capacity rules and planning use cases. | Typed planning commands, results and atomic persistence ports. Internally separate people/projects/scheduling/capacity modules; depends on tenancy contracts. |
 | `crates/files` / `kivo-files` | File reservation, completion and download use cases; metadata and object-store contracts. | Typed file lifecycle operations and storage capabilities; depends on tenancy contracts. |
-| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, onboarding, planning, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
+| `crates/postgres` / `kivo-postgres` | SQLx implementations of identity, tenancy, onboarding, planning, time tracking, leave, reporting, realtime and file persistence ports, bounded pools and transactional audit persistence. | Depends on capability contracts; owns SQL, row mapping and transaction mechanics. Organize internally by capability. |
 | `crates/rate-limit` / `kivo-rate-limit` | Rate-limit port, explicit allow/deny/unavailable outcomes, and Upstash REST implementation in a separate adapter module. | No authorization authority or scheduling locks. Its small stable interface is consumed by the HTTP process. Split additional adapters into their own crates when introduced. |
 | `crates/object-storage-s3` / `kivo-object-storage-s3` | Neon S3 endpoint configuration, signing, object verification and storage client lifecycle. | Implements the file capability's object-store port; provider SDK types remain private. |
 
@@ -44,7 +47,10 @@ Keep the dependency direction explicit:
 kivo-planning ────────────────> kivo-tenancy
 kivo-files ───────────────────> kivo-tenancy
 kivo-onboarding ─────────────> tenancy / planning contracts
-kivo-postgres ────────────────> tenancy / identity / onboarding / planning / files / realtime contracts
+kivo-time-tracking ──────────> tenancy contracts
+kivo-leave-requests ─────────> tenancy / planning contracts
+kivo-reporting ──────────────> tenancy / planning / time-tracking contracts
+kivo-postgres ────────────────> capability contracts (SQL adapters and atomic transactions)
 kivo-object-storage-s3 ───────> files object-store contract
 kivo-api ────────────────────> capability services + selected adapters
 kivo-migrator ────────────────> PostgreSQL migration support
@@ -225,4 +231,21 @@ Setup and enrollment authorize before receipt replay, serialize on the organizat
 | Member | Yes | No | No | No |
 | Viewer | Yes | No | No | No |
 
-Member and Viewer are currently both read-only. Future self-service timesheets or leave requests must introduce explicit permissions scoped to the association; a linked profile does not implicitly grant edit rights. Last-owner protection, tenant filtering, financial redaction and permission checks apply on the server. Signup alone never grants any existing organization's role.
+Member can now record their own time and request their own leave through the linked scheduling profile. Viewer remains read-only. A linked profile grants no project, allocation, calendar, access or financial editing authority. Last-owner protection, tenant filtering, financial redaction and permission checks apply on the server. Signup alone never grants any existing organization's role.
+
+
+## Member self-service, time tracking and leave
+
+`My work` uses the server-resolved `member_people` association to select assignments, daily capacity and upcoming approved time off. Member sign-in lands on this view. Unlinked accounts receive a specific instruction to ask an owner/admin for enrollment; accounts never choose their own person ID in a self-service mutation.
+
+`kivo-time-tracking` owns migration 0006, weekly timesheets and project time entries. A sheet preserves both the submitting user and the linked person when it is first created. Weeks start Monday in workspace calendar dates; entry duration is stored as integer minutes, and the UI accepts hours. Owner/Admin/Planner/Member can record their own time with a current linked profile. Viewer cannot mutate time. Only Owner/Admin can read and review other people's detailed timesheets, including notes; general reporting exposes aggregates rather than notes. Financial rates are absent from the reports.
+
+Entry insertion requires version 1, updates require the next entry version, deletion requires its current version. Every entry mutation also supplies the current sheet version (0 for a new sheet), then increments it. This prevents an entry edit from racing with submission or another edit. A day cannot exceed 1,440 total minutes across projects. Entry ownership, date/week, project tenant, versions and daily totals are checked under the organization and timesheet locks. Changing the member's scheduling association does not transfer an old sheet to the new person/account.
+
+Timesheets move Draft → Submitted → Approved. Submission requires recorded time; submitted and approved entries are locked. A submitter can withdraw a submitted sheet; an Owner/Admin can return it to Draft with a reason. Approved sheets cannot be reopened through this contract. Owners/admins may approve their own sheets, supporting a solo workspace, and every approval is audited. Historical timesheets remain when workspace membership is removed.
+
+`kivo-leave-requests` owns migration 0007 and the Pending → Approved/Rejected/Cancelled workflow. A member requests leave for their server-resolved linked person. Pending/rejected/cancelled requests have no capacity effect. Approval by Owner/Admin creates one planning absence in the same transaction as the request status, audit, receipt and revision event. Partial-day durations use the existing 15-minute increments and maximum-overlap capacity rule. Members can cancel pending requests; Owner/Admin can also cancel approved requests, atomically deleting the generated absence and restoring capacity. The ordinary planning editor cannot modify/delete an approved request's generated absence; approved leave is managed through its request.
+
+`kivo-reporting` reads one repeatable-read tenant snapshot for a date range of at most 366 days. It compares confirmed calendar-aware planned hours with all recorded hours, identifies approved hours separately, and reports actual/billable utilization against capacity after approved leave and holidays. Project budget usage counts approved hours across the project's lifetime, while the other hour columns follow the selected date range. Draft/submitted actuals remain explicitly labelled as recorded rather than approved. Reports never erase scheduled effort during leave, and zero-capacity utilization is undefined. The reporting UI has daily series, project/person tables, date-range filtering and CSV export.
+
+Frontend feature modules own their composers and storage I/O. The workspace shell only mounts My work, Timesheets and Reports. Current-role checks precede receipt replay; entry/sheet/request mutation, audit and durable invalidation stay in one PostgreSQL transaction. Live revisions refresh feature snapshots and planning capacity. No independent worker is needed for these synchronous workflows.
