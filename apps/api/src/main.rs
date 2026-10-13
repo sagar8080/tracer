@@ -5,6 +5,7 @@ mod files;
 mod leave_requests;
 mod migration;
 mod onboarding;
+mod reporting;
 mod team;
 mod time_tracking;
 use anyhow::bail;
@@ -207,6 +208,7 @@ async fn main() -> anyhow::Result<()> {
             "/v1/organizations/{org}/leave",
             get(leave_requests::read).post(leave_requests::write),
         )
+        .route("/v1/organizations/{org}/reports", get(reporting::read))
         .route("/ready", get(ready))
         .route(
             "/v1/organizations/{org}/team",

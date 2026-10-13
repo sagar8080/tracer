@@ -39,3 +39,43 @@ pub fn has_workday(start: NaiveDate, end: NaiveDate, calendars: &[WorkingCalenda
                 .unwrap_or(!matches!(date.weekday(), Weekday::Sat | Weekday::Sun))
         })
 }
+
+/// Effective daily capacity shared by scheduling reports and member self-service.
+/// Leave reductions overlap by maximum, and never erase scheduled effort.
+pub fn base_minutes_on(
+    person: &crate::Person,
+    date: NaiveDate,
+    calendars: &[WorkingCalendar],
+) -> i32 {
+    let day = date.weekday().num_days_from_monday() as usize;
+    calendars
+        .iter()
+        .filter(|c| {
+            c.org_id == person.org_id && c.person_id == person.id && c.effective_from <= date
+        })
+        .max_by_key(|c| c.effective_from)
+        .and_then(|c| c.weekly_minutes.get(day))
+        .copied()
+        .unwrap_or(if day < 5 { person.daily_minutes } else { 0 })
+}
+pub fn available_minutes_on(
+    person: &crate::Person,
+    date: NaiveDate,
+    calendars: &[WorkingCalendar],
+    absences: &[Absence],
+) -> i32 {
+    let base = base_minutes_on(person, date, calendars);
+    let removed = absences
+        .iter()
+        .filter(|a| {
+            a.org_id == person.org_id
+                && (a.person_id == Some(person.id) || a.category == "holiday")
+                && a.start <= date
+                && a.end >= date
+        })
+        .map(|a| a.daily_minutes.unwrap_or(base))
+        .max()
+        .unwrap_or(0)
+        .min(base);
+    base - removed
+}

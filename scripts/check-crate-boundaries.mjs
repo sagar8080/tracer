@@ -16,6 +16,7 @@ const graph = new Map(
 const edges = {
   "kivo-time-tracking": ["kivo-tenancy"],
   "kivo-leave-requests": ["kivo-tenancy", "kivo-planning"],
+  "kivo-reporting": ["kivo-tenancy", "kivo-planning", "kivo-time-tracking"],
   "kivo-onboarding": ["kivo-tenancy", "kivo-planning"],
   "kivo-tenancy": [],
   "kivo-identity": ["kivo-tenancy"],
@@ -27,6 +28,7 @@ const edges = {
   "kivo-postgres": [
     "kivo-time-tracking",
     "kivo-leave-requests",
+    "kivo-reporting",
 
     "kivo-onboarding",
     "kivo-tenancy",
@@ -40,6 +42,7 @@ const edges = {
   "kivo-api": [
     "kivo-time-tracking",
     "kivo-leave-requests",
+    "kivo-reporting",
 
     "kivo-onboarding",
     "kivo-identity",
@@ -73,6 +76,7 @@ for (const [name, pkg] of graph) {
       [
         "kivo-time-tracking",
         "kivo-leave-requests",
+        "kivo-reporting",
         "kivo-onboarding",
         "kivo-tenancy",
         "kivo-planning",

@@ -1,0 +1,15 @@
+[package]
+name = "kivo-reporting"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+[lints]
+workspace = true
+[dependencies]
+kivo-tenancy.workspace = true
+kivo-planning.workspace = true
+kivo-time-tracking.workspace = true
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true

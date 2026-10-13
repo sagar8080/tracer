@@ -1856,6 +1856,7 @@ dependencies = [
  "kivo-postgres",
  "kivo-rate-limit",
  "kivo-realtime",
+ "kivo-reporting",
  "kivo-tenancy",
  "kivo-time-tracking",
  "serde",
@@ -1977,6 +1978,7 @@ dependencies = [
  "kivo-onboarding",
  "kivo-planning",
  "kivo-realtime",
+ "kivo-reporting",
  "kivo-tenancy",
  "kivo-time-tracking",
  "serde_json",
@@ -2026,6 +2028,19 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+ "uuid",
+]
+
+[[package]]
+name = "kivo-reporting"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "kivo-planning",
+ "kivo-tenancy",
+ "kivo-time-tracking",
+ "serde",
+ "thiserror",
  "uuid",
 ]
 

@@ -5,7 +5,7 @@ mod people;
 mod projects;
 mod scheduling;
 mod service;
-pub use capacity::{Absence, WorkingCalendar, has_workday};
+pub use capacity::{Absence, WorkingCalendar, available_minutes_on, base_minutes_on, has_workday};
 pub use command::{Command, Workspace};
 pub use people::Person;
 pub use projects::Project;

@@ -31,6 +31,7 @@ aws-sdk-s3 = { version = "1", default-features = false, features = ["rt-tokio", 
 
 kivo-time-tracking = { path = "crates/time-tracking" }
 kivo-leave-requests = { path = "crates/leave-requests" }
+kivo-reporting = { path = "crates/reporting" }
 kivo-onboarding = { path = "crates/onboarding" }
 kivo-tenancy = { path = "crates/tenancy" }
 kivo-planning = { path = "crates/planning" }

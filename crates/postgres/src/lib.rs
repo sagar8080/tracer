@@ -8,6 +8,7 @@ mod leave_requests;
 mod onboarding;
 mod planning;
 mod realtime;
+mod reporting;
 mod rows;
 mod team;
 mod tenancy;
