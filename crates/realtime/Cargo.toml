@@ -1,0 +1,13 @@
+[package]
+name = "kivo-realtime"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+[lints]
+workspace = true
+[dependencies]
+kivo-tenancy.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+serde.workspace = true
+thiserror.workspace = true
