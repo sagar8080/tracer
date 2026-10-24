@@ -1,0 +1,18 @@
+[package]
+name = "kivo-integrations"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kivo-tenancy.workspace = true
+kivo-planning.workspace = true
+kivo-files.workspace = true
+kivo-jobs.workspace = true
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

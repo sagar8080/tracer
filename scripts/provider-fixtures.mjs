@@ -31,6 +31,16 @@ export async function providerFixtures() {
     }
   });
   const s3 = createServer(async (req, res) => {
+    res.setHeader("Access-Control-Allow-Origin", "http://127.0.0.1:3002");
+    res.setHeader("Access-Control-Allow-Methods", "GET, PUT, HEAD, OPTIONS");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "content-type,content-length,if-none-match,x-amz-server-side-encryption",
+    );
+    if (req.method === "OPTIONS") {
+      res.writeHead(204).end();
+      return;
+    }
     if (state.s3Failure) {
       res.writeHead(503).end();
       return;

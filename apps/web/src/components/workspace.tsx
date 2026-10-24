@@ -62,6 +62,7 @@ import Timeline from "./timeline";
 import CapacityView from "./capacity-view";
 import { permissions, mayEdit } from "@/features/tenancy/permissions";
 import { Welcome } from "@/features/onboarding/welcome";
+import { Imports } from "@/features/imports/imports";
 import { Agents } from "@/features/agents/agents";
 import { TeamDialog } from "@/features/tenancy/team-dialog";
 import { useLiveWorkspace } from "@/features/realtime/use-live-workspace";
@@ -78,16 +79,20 @@ const nav = [
   { id: "people", label: "People", icon: Users },
   { id: "capacity", label: "Capacity", icon: BarChart3 },
 ] as const;
-type View = (typeof nav)[number]["id"] | "agents";
+type View = (typeof nav)[number]["id"] | "agents" | "imports";
 export default function Workspace({ account }: { account?: string }) {
   const [busy, setBusy] = useState(false);
   const [data, setData] = useState<WorkspaceData | null>(null);
   const [error, setError] = useState("");
   const [orgId, setOrgId] = useState("");
   const [view, setView] = useState<View>("schedule");
-  const featureView = ["mywork", "timesheets", "reports", "agents"].includes(
-    view,
-  );
+  const featureView = [
+    "mywork",
+    "timesheets",
+    "reports",
+    "agents",
+    "imports",
+  ].includes(view);
   const [start, setStart] = useState(monday(today()));
   const [query, setQuery] = useState("");
   const [team, setTeam] = useState("All teams");
@@ -133,7 +138,8 @@ export default function Workspace({ account }: { account?: string }) {
     setTeamOpen(false);
   }, [orgId, access.role]);
   useEffect(() => {
-    if (view === "agents" && !access.plan) setView("schedule");
+    if (["agents", "imports"].includes(view) && !access.plan)
+      setView("schedule");
   }, [view, access.plan]);
   async function refreshWorkspace() {
     receiveSnapshot(await loadWorkspace());
@@ -353,7 +359,7 @@ export default function Workspace({ account }: { account?: string }) {
     );
   }
   function openNew() {
-    if (view === "agents") return;
+    if (["agents", "imports"].includes(view)) return;
     if (!access.plan || (view === "people" && !access.administer)) return;
     if (view === "people")
       setEditor({
@@ -591,9 +597,15 @@ export default function Workspace({ account }: { account?: string }) {
                 </Dropdown.Item>
               )}
               {isRemote && access.plan && (
-                <Dropdown.Item onSelect={() => setView("agents")}>
-                  <Settings2 size={15} /> Agent activity
-                </Dropdown.Item>
+                <>
+                  <Dropdown.Item onSelect={() => setView("imports")}>
+                    <ArrowDownToLine size={15} />
+                    Spreadsheet imports
+                  </Dropdown.Item>
+                  <Dropdown.Item onSelect={() => setView("agents")}>
+                    <Settings2 size={15} /> Agent activity
+                  </Dropdown.Item>
+                </>
               )}
               {account && (
                 <>
@@ -721,7 +733,7 @@ export default function Workspace({ account }: { account?: string }) {
       </aside>
       <main
         className="main"
-        aria-label={`${view === "agents" ? "Agent activity" : nav.find((n) => n.id === view)?.label} workspace`}
+        aria-label={`${view === "imports" ? "Spreadsheet imports" : view === "agents" ? "Agent activity" : nav.find((n) => n.id === view)?.label} workspace`}
       >
         <header className="app-header">
           <div className="header-title">
@@ -734,9 +746,11 @@ export default function Workspace({ account }: { account?: string }) {
               <PanelLeft size={16} />
             </button>
             <h1>
-              {view === "agents"
-                ? "Agent activity"
-                : nav.find((n) => n.id === view)?.label}
+              {view === "imports"
+                ? "Spreadsheet imports"
+                : view === "agents"
+                  ? "Agent activity"
+                  : nav.find((n) => n.id === view)?.label}
             </h1>
             <span className="header-context">
               {featureView
@@ -772,6 +786,12 @@ export default function Workspace({ account }: { account?: string }) {
                       Add workspace holiday
                     </Dropdown.Item>
                     <Dropdown.Separator />
+                    {isRemote && access.plan && (
+                      <Dropdown.Item onSelect={() => setView("imports")}>
+                        <ArrowDownToLine size={15} />
+                        Import workbook
+                      </Dropdown.Item>
+                    )}
                     <Dropdown.Item onSelect={exportCsv}>
                       <ArrowDownToLine size={15} />
                       Export schedule CSV
@@ -828,6 +848,14 @@ export default function Workspace({ account }: { account?: string }) {
             />
           )}
           {view === "reports" && <Reports orgId={orgId} data={data} />}
+          {view === "imports" && access.plan && (
+            <Imports
+              key={orgId}
+              orgId={orgId}
+              data={data}
+              onChanged={refreshWorkspace}
+            />
+          )}
           {view === "agents" && access.plan && (
             <Agents
               key={orgId}

@@ -30,6 +30,7 @@ impl Upload {
         if !matches!(
             self.content_type.as_str(),
             "text/csv"
+                | "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 | "application/json"
                 | "application/pdf"
                 | "image/png"

@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+FROM rust:1.95.0-bookworm AS build
+RUN apt-get update && apt-get install -y --no-install-recommends cmake \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+COPY apps/api ./apps/api
+COPY apps/migrator ./apps/migrator
+COPY apps/realtime ./apps/realtime
+COPY apps/worker ./apps/worker
+ENV CARGO_INCREMENTAL=0 CARGO_PROFILE_RELEASE_DEBUG=0 CARGO_BUILD_JOBS=2
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    cargo build --locked --release -p kivo-api -p kivo-migrator \
+      -p kivo-realtime-server -p kivo-worker
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --create-home kivo
+USER 10001:10001
+WORKDIR /home/kivo
+ENV KIVO_LOAD_ENV=0 RUST_LOG=info AWS_EC2_METADATA_DISABLED=true
+
+FROM runtime AS api
+COPY --from=build /src/target/release/kivo-api /usr/local/bin/kivo-api
+ENTRYPOINT ["/usr/local/bin/kivo-api"]
+
+FROM runtime AS realtime
+COPY --from=build /src/target/release/kivo-realtime-server /usr/local/bin/kivo-realtime-server
+ENTRYPOINT ["/usr/local/bin/kivo-realtime-server"]
+
+FROM runtime AS worker
+COPY --from=build /src/target/release/kivo-worker /usr/local/bin/kivo-worker
+ENTRYPOINT ["/usr/local/bin/kivo-worker"]
+
+FROM runtime AS migrator
+# SQLx embeds the ordered migration stream in this executable.
+COPY --from=build /src/target/release/kivo-migrator /usr/local/bin/kivo-migrator
+ENTRYPOINT ["/usr/local/bin/kivo-migrator"]

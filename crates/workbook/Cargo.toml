@@ -1,0 +1,17 @@
+[package]
+name = "kivo-workbook"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kivo-integrations.workspace = true
+sha2.workspace = true
+csv.workspace = true
+calamine.workspace = true
+zip.workspace = true
+quick-xml.workspace = true
+chrono.workspace = true
+
+[lints]
+workspace = true

@@ -166,6 +166,9 @@ These cycles precede the full feature-expansion sequence. They extract narrowly 
 
 ### A1 Spreadsheet onboarding
 
+**Implemented development slice:** CSV/XLSX for allocation rows and weekly matrices; private originals and cell references; explicit manual/OpenAI/Claude/Gemini mapping; identity/calendar/formula review; capacity findings; atomic version-checked publication and exact retries; refreshed-file differences preserving newer human edits; pinned CSV export. `kivo-integrations`, `kivo-jobs`, parser/inference adapters and `apps/worker` have actual consumers. [A1 implementation](a1-implementation.md) and [setup](import-setup.md) document limits. Model protocol fixtures do not establish live provider quality, and real customer workbook/time-to-result gates remain open.
+
+
 **Slices:** declared layout parser and private source lineage; mapping suggestions/clarification; dry-run reconciliation and versioned import publication; readable export and repeat-file difference. Introduce jobs/worker and the model adapter only with this actual workflow; provider selection/configuration is explicit.
 
 **Gate:** real customer fixtures for both layouts map accurately or visibly request clarification. Hours/identities/dates reconcile and imported fields cannot create grants. Import replay creates no duplicates, failures leave a recoverable staged state, and newer human edits are preserved. Cached formulas, mixed date conventions and missing calendar hours are handled explicitly. Measure first-result time and corrections on customer workbooks.

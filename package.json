@@ -16,7 +16,15 @@
     "dev:api": "cargo build --locked --workspace && cargo run --locked -p kivo-api",
     "db:migrate": "cargo run --locked -p kivo-migrator",
     "test:shared": "node scripts/test-shared.mjs",
-    "dev:realtime": "cargo run --locked -p kivo-realtime-server"
+    "dev:realtime": "cargo run --locked -p kivo-realtime-server",
+    "dev:worker": "cargo run --locked -p kivo-worker",
+    "test:imports": "node scripts/test-imports.mjs",
+    "test:web-auth": "node scripts/test-web-auth.mjs",
+    "test:deploy": "node --test scripts/test-deploy-config.mjs",
+    "test:self-hosted": "node scripts/test-self-hosted.mjs",
+    "deploy:check": "node scripts/check-deploy.mjs",
+    "deploy:release": "node scripts/deploy-release.mjs",
+    "deploy:smoke": "node scripts/smoke-deploy.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/sdk": "1.32.1",

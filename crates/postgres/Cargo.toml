@@ -30,3 +30,6 @@ kivo-identity.workspace = true
 kivo-realtime.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
+
+kivo-integrations.workspace = true
+kivo-jobs.workspace = true

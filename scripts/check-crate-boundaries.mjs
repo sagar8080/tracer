@@ -14,6 +14,25 @@ const graph = new Map(
   packages.filter((p) => members.includes(p.id)).map((p) => [p.name, p]),
 );
 const edges = {
+  "kivo-integrations": [
+    "kivo-tenancy",
+    "kivo-planning",
+    "kivo-files",
+    "kivo-jobs",
+  ],
+  "kivo-jobs": [],
+  "kivo-workbook": ["kivo-integrations"],
+  "kivo-import-inference": ["kivo-integrations"],
+  "kivo-worker": [
+    "kivo-integrations",
+    "kivo-jobs",
+    "kivo-workbook",
+    "kivo-import-inference",
+    "kivo-postgres",
+    "kivo-object-storage-s3",
+    "kivo-files",
+    "kivo-tenancy",
+  ],
   "kivo-agents": ["kivo-tenancy"],
   "kivo-agent-runtime": ["kivo-tenancy", "kivo-agents", "kivo-planning"],
   "kivo-time-tracking": ["kivo-tenancy"],
@@ -28,6 +47,8 @@ const edges = {
   "kivo-planning": ["kivo-tenancy"],
   "kivo-files": ["kivo-tenancy"],
   "kivo-postgres": [
+    "kivo-integrations",
+    "kivo-jobs",
     "kivo-agents",
     "kivo-agent-runtime",
     "kivo-time-tracking",
@@ -44,6 +65,8 @@ const edges = {
   "kivo-object-storage-s3": ["kivo-files"],
   "kivo-rate-limit": [],
   "kivo-api": [
+    "kivo-integrations",
+    "kivo-import-inference",
     "kivo-agents",
     "kivo-agent-runtime",
     "kivo-time-tracking",
@@ -80,6 +103,8 @@ for (const [name, pkg] of graph) {
       );
     if (
       [
+        "kivo-integrations",
+        "kivo-jobs",
         "kivo-agents",
         "kivo-agent-runtime",
         "kivo-time-tracking",
@@ -108,7 +133,12 @@ for (const [name, pkg] of graph) {
   }
   assert.equal(
     pkg.targets.some((t) => t.kind.includes("bin")),
-    ["kivo-api", "kivo-migrator", "kivo-realtime-server"].includes(name),
+    [
+      "kivo-api",
+      "kivo-migrator",
+      "kivo-realtime-server",
+      "kivo-worker",
+    ].includes(name),
     `Unexpected process boundary: ${name}`,
   );
 }

@@ -1,0 +1,157 @@
+name: kivo
+
+x-runtime: &runtime
+  restart: unless-stopped
+  init: true
+  stop_grace_period: 60s
+  security_opt: [no-new-privileges:true]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "3" }
+  networks: [services]
+
+x-health: &health
+  interval: 30s
+  timeout: 15s
+  retries: 3
+  start_period: 30s
+
+services:
+  web:
+    <<: *runtime
+    image: ${KIVO_IMAGE_PREFIX:?Set KIVO_IMAGE_PREFIX}-web:${KIVO_RELEASE:?Set KIVO_RELEASE}
+    env_file:
+      - path: ${KIVO_ENV_DIR:?Set KIVO_ENV_DIR}/web.env
+        format: raw
+    environment:
+      NODE_ENV: production
+      KIVO_AUTH_MODE: auth0
+      NEXT_PUBLIC_STORAGE_MODE: api
+      APP_BASE_URL: https://${SITE_HOST:?Set SITE_HOST}
+      KIVO_API_URL: http://api:4000
+      KIVO_INTERNAL_API_ORIGIN: http://api:4000
+    healthcheck:
+      <<: *health
+      test:
+        [
+          CMD,
+          node,
+          -e,
+          "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+    depends_on:
+      api: { condition: service_healthy }
+
+  api:
+    <<: *runtime
+    image: ${KIVO_IMAGE_PREFIX:?Set KIVO_IMAGE_PREFIX}-api:${KIVO_RELEASE:?Set KIVO_RELEASE}
+    env_file:
+      - path: ${KIVO_ENV_DIR:?Set KIVO_ENV_DIR}/api.env
+        format: raw
+    environment:
+      KIVO_LOAD_ENV: "0"
+      KIVO_AUTH_MODE: auth0
+      KIVO_RUN_MIGRATIONS: "0"
+      KIVO_API_BIND: 0.0.0.0:4000
+      KIVO_WEB_ORIGIN: https://${SITE_HOST:?Set SITE_HOST}
+      AWS_EC2_METADATA_DISABLED: "true"
+    healthcheck:
+      <<: *health
+      test:
+        [
+          CMD,
+          curl,
+          --fail,
+          --silent,
+          --max-time,
+          "12",
+          http://127.0.0.1:4000/internal/ready,
+        ]
+
+  realtime:
+    <<: *runtime
+    image: ${KIVO_IMAGE_PREFIX:?Set KIVO_IMAGE_PREFIX}-realtime:${KIVO_RELEASE:?Set KIVO_RELEASE}
+    env_file:
+      - path: ${KIVO_ENV_DIR:?Set KIVO_ENV_DIR}/realtime.env
+        format: raw
+    environment:
+      KIVO_LOAD_ENV: "0"
+      KIVO_REALTIME_BIND: 0.0.0.0:4001
+      KIVO_WEB_ORIGIN: https://${SITE_HOST:?Set SITE_HOST}
+    healthcheck:
+      <<: *health
+      test:
+        [
+          CMD,
+          curl,
+          --fail,
+          --silent,
+          --max-time,
+          "8",
+          http://127.0.0.1:4001/ready,
+        ]
+
+  worker:
+    <<: *runtime
+    image: ${KIVO_IMAGE_PREFIX:?Set KIVO_IMAGE_PREFIX}-worker:${KIVO_RELEASE:?Set KIVO_RELEASE}
+    env_file:
+      - path: ${KIVO_ENV_DIR:?Set KIVO_ENV_DIR}/worker.env
+        format: raw
+    environment:
+      KIVO_LOAD_ENV: "0"
+      KIVO_WORKER_BIND: 127.0.0.1:4002
+      AWS_EC2_METADATA_DISABLED: "true"
+    healthcheck:
+      <<: *health
+      test:
+        [
+          CMD,
+          curl,
+          --fail,
+          --silent,
+          --max-time,
+          "12",
+          http://127.0.0.1:4002/ready,
+        ]
+
+  migrator:
+    image: ${KIVO_IMAGE_PREFIX:?Set KIVO_IMAGE_PREFIX}-migrator:${KIVO_RELEASE:?Set KIVO_RELEASE}
+    profiles: [release]
+    restart: "no"
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    networks: [services]
+    env_file:
+      - path: ${KIVO_ENV_DIR:?Set KIVO_ENV_DIR}/migrator.env
+        format: raw
+    environment:
+      KIVO_LOAD_ENV: "0"
+
+  edge:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    stop_grace_period: 30s
+    environment:
+      SITE_HOST: ${SITE_HOST:?Set SITE_HOST}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+    networks: [services]
+    depends_on:
+      web: { condition: service_healthy }
+      realtime: { condition: service_healthy }
+
+networks:
+  services:
+    driver: bridge
+
+volumes:
+  caddy-data:
+  caddy-config:

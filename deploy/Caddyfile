@@ -1,0 +1,51 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+	# Runtime errors must not expose callback codes, cookies or bearer tokens.
+	log default {
+		output stdout
+		format filter {
+			wrap json
+			fields {
+				request>uri delete
+				request>headers delete
+				resp_headers delete
+			}
+		}
+	}
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+	}
+}
+
+{$SITE_HOST} {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	request_body {
+		max_size 2097152
+	}
+	handle /ws {
+		reverse_proxy realtime:4001
+	}
+	# The typed agent API shares the domain. Browser traffic uses the /api BFF.
+	handle /v1/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy web:3000
+	}
+}
+
+www.{$SITE_HOST} {
+	# Preserve invite paths/fragments; never start an auth transaction here.
+	redir https://{$SITE_HOST}{uri} 308
+}

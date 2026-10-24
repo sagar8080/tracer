@@ -4,6 +4,7 @@ mod auth;
 mod config;
 mod error;
 mod files;
+mod imports;
 mod leave_requests;
 mod mcp;
 mod migration;
@@ -14,7 +15,7 @@ mod time_tracking;
 use anyhow::bail;
 use axum::{
     Json, Router,
-    extract::{DefaultBodyLimit, State},
+    extract::{ConnectInfo, DefaultBodyLimit, State},
     http::{HeaderMap, StatusCode},
     response::Response,
     routing::{get, post},
@@ -29,6 +30,7 @@ use std::time::Duration;
 #[derive(Clone)]
 struct AppState {
     web_origin: String,
+    mapping: kivo_import_inference::Adapters,
     database: Postgres,
     planning: kivo_planning::Service<Postgres>,
     auth: auth::Authentication,
@@ -87,6 +89,22 @@ async fn ready(
     headers: HeaderMap,
 ) -> Result<(StatusCode, Json<serde_json::Value>), ApiError> {
     state.auth.authenticate(&headers, &state.database).await?;
+    Ok(dependency_status(&state).await)
+}
+
+// Container health uses a local request without an expiring human OAuth token.
+// The authenticated /ready endpoint retains its existing public contract.
+async fn internal_ready(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
+) -> StatusCode {
+    if !peer.ip().is_loopback() {
+        return StatusCode::FORBIDDEN;
+    }
+    dependency_status(&state).await.0
+}
+
+async fn dependency_status(state: &AppState) -> (StatusCode, Json<serde_json::Value>) {
     let postgres = state.database.ping();
     let redis = async {
         match &state.redis {
@@ -117,7 +135,7 @@ async fn ready(
     };
     let (postgres, redis, s3) = tokio::join!(postgres, redis, s3);
     let healthy = postgres && redis != "unavailable" && s3 != "unavailable";
-    Ok((
+    (
         if healthy {
             StatusCode::OK
         } else {
@@ -128,7 +146,7 @@ async fn ready(
             "mode":state.auth.mode(),
             "services":{"postgres":if postgres {"ok"} else {"unavailable"}, "redis":redis,"s3":s3}
         })),
-    ))
+    )
 }
 
 async fn no_store(mut response: Response) -> Response {
@@ -184,6 +202,7 @@ async fn main() -> anyhow::Result<()> {
         "Provider adapters configured; use /ready to check connectivity"
     );
     let state = AppState {
+        mapping: kivo_import_inference::Adapters::new(config.inference)?,
         web_origin: config.web_origin,
         database: database.clone(),
         planning: kivo_planning::Service::new(database.clone()),
@@ -196,6 +215,7 @@ async fn main() -> anyhow::Result<()> {
             "/health",
             get(|| async { Json(serde_json::json!({"status":"ok"})) }),
         )
+        .route("/internal/ready", get(internal_ready))
         .route("/v1/workspace", get(read).post(write))
         .route(
             "/v1/organizations/{org}/agents",
@@ -249,6 +269,27 @@ async fn main() -> anyhow::Result<()> {
             "/v1/organizations/{org}/realtime-ticket",
             post(team::ticket),
         )
+        .route(
+            "/v1/organizations/{org}/imports",
+            get(imports::list).post(imports::start),
+        )
+        .route("/v1/organizations/{org}/imports/{id}", get(imports::read))
+        .route(
+            "/v1/organizations/{org}/imports/{id}/review",
+            post(imports::review).layer(DefaultBodyLimit::max(2 * 1024 * 1024)),
+        )
+        .route(
+            "/v1/organizations/{org}/imports/{id}/publish",
+            post(imports::publish),
+        )
+        .route(
+            "/v1/organizations/{org}/imports/{id}/cancel",
+            post(imports::cancel),
+        )
+        .route(
+            "/v1/organizations/{org}/imports/{id}/export",
+            post(imports::export),
+        )
         .route("/v1/organizations/{org}/files", post(files::create))
         .route(
             "/v1/organizations/{org}/files/{id}/complete",
@@ -263,13 +304,23 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state);
     let listener = tokio::net::TcpListener::bind(&config.bind).await?;
     tracing::info!(bind=%config.bind,"Kivo API listening");
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async {
-            if let Err(e) = tokio::signal::ctrl_c().await {
-                tracing::error!(error=%e,"shutdown signal failed")
-            }
-        })
-        .await?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await?;
     database.close().await;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    if let Ok(mut terminate) =
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+    {
+        tokio::select! { _ = tokio::signal::ctrl_c() => (), _ = terminate.recv() => () }
+        return;
+    }
+    let _ = tokio::signal::ctrl_c().await;
 }

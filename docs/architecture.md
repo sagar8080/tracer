@@ -1,6 +1,8 @@
 # Kivo architecture and data model
 
-Kivo runs a Next.js browser application and an Axum backend against PostgreSQL. The backend is a Cargo workspace with eighteen crates: three independent executables and fifteen capability/provider libraries. Shared code is linked through explicit library contracts; runtime processes can be deployed and scaled independently as they are introduced. The browser-local demo is a separate storage adapter, explicitly labeled and not shared storage or authentication. Future capability boundaries and delivery dependencies are defined in the [product design and iteration plan](product-design.md); this document records implemented architecture and its current limits.
+Kivo runs a Next.js browser application and an Axum backend against PostgreSQL. The backend is a Cargo workspace with twenty-three crates: four independent executables and nineteen capability/provider libraries. Shared code is linked through explicit library contracts; runtime processes can be deployed and scaled independently as they are introduced. The browser-local demo is a separate storage adapter, explicitly labeled and not shared storage or authentication. Future capability boundaries and delivery dependencies are defined in the [product design and iteration plan](product-design.md); this document records implemented architecture and its current limits.
+
+The [hosted pilot deployment](deployment.md) composes separate web/API/realtime/worker containers on one Linux server behind Caddy. One canonical HTTPS origin routes `/ws` to realtime, `/v1/*` to the API and other requests to Next.js; browser mutations retain the authenticated `/api/*` BFF. A fixed, explicitly trusted internal HTTP origin lets the web server reach the API on the private Docker bridge; no runtime port is published. Separate environment files isolate credentials, and the migrator receives only database settings in a one-shot release task. PostgreSQL remains the job/authorization authority. Single-server packaging does not establish high availability, workload capacity or hosted recovery.
 
 ## Crate and process boundaries
 
@@ -14,7 +16,7 @@ Each independently runnable process gets its own executable crate. Its entrypoin
 | --- | --- | --- |
 | `apps/api` / `kivo-api` | HTTP transport, verified request context, routing, DTO mapping and dependency composition. | Implemented; thin HTTP handlers and composition. |
 | `apps/migrator` / `kivo-migrator` | Apply the ordered schema migrations through Neon's direct connection and exit with a meaningful status. | Implemented; owns the unchanged ordered SQL stream. |
-| `apps/worker` / `kivo-worker` | Execute durable background jobs, exports and cleanup with bounded concurrency, retries and idempotency. | Introduce with the first durable background workflow. |
+| `apps/worker` / `kivo-worker` | Execute durable background jobs, exports and cleanup with bounded concurrency, retries and idempotency. | Implemented A1 parsing/export jobs, 90-second leases, up to three attempts and one active job per tenant. Cleanup remains future work. |
 | `apps/agent-runner` / `kivo-agent-runner` | Execute durable agent runs/steps with scoped tools, budgets, cancellation fences and verified outcomes. | Planned; introduce with the first built-in durable agent workflow in A1/A2. |
 | `apps/realtime` / `kivo-realtime-server` | Authorize subscriptions, deliver committed changes, apply backpressure and recover missed revisions. | Implemented; single-use subscription tickets, bounded delivery and durable per-tenant replay. |
 
@@ -22,10 +24,14 @@ A task with a distinct deployment, credential boundary or scaling profile receiv
 
 ### Initial library boundaries
 
-These library crates contain the responsibilities implemented today. Future worker processes remain intentionally absent.
+These library crates contain the responsibilities implemented today. The A1 import worker has an independent process boundary.
 
 | Library crate | Owns | Public boundary / dependencies |
 | --- | --- | --- |
+| `crates/integrations` / `kivo-integrations` | Reviewed import contracts, source identities, calendar/effort reconciliation and atomic publication ports. | Pure typed contracts depending on planning, tenancy, files and job leases. |
+| `crates/jobs` / `kivo-jobs` | Durable job kind/lease/retry contracts. | No runtime or provider clients; Postgres owns claim/fencing implementation. |
+| `crates/workbook` / `kivo-workbook` | Bounded CSV/XLSX decoding, cell lineage, deterministic header hints and pinned CSV output. | Parser adapter; depends on integrations, CSV/Calamine/ZIP/XML libraries. |
+| `crates/import-inference` / `kivo-import-inference` | OpenAI Responses, Claude Messages and Gemini generateContent mapping adapters. | Implements the integration-owned suggestion port; bounded HTTP and strict typed decoding. |
 | `crates/tenancy` / `kivo-tenancy` | Organization and membership types, actor context and role-policy decisions. | Typed tenant/actor context and access decisions; no HTTP or provider SDKs. Identity remains a separate capability. |
 | `crates/agents` / `kivo-agents` | Agent registry, versioned definition, one-time credential/session contracts and atomic persistence ports. | Depends on tenancy and value types; no SQL, inference or transport. |
 | `crates/agent-runtime` / `kivo-agent-runtime` | Bounded schedule/capacity queries, pure move/impact evaluation, inert proposal lifecycle and atomic persistence ports. | Depends on agents, tenancy and planning contracts; no model, SQL or HTTP. Durable runs are future work. |
@@ -264,3 +270,9 @@ Timesheets move Draft → Submitted → Approved. Submission requires recorded t
 `kivo-reporting` reads one repeatable-read tenant snapshot for a date range of at most 366 days. It compares confirmed calendar-aware planned hours with all recorded hours, identifies approved hours separately, and reports actual/billable utilization against capacity after approved leave and holidays. Project budget usage counts approved hours across the project's lifetime, while the other hour columns follow the selected date range. Draft/submitted actuals remain explicitly labelled as recorded rather than approved. Reports never erase scheduled effort during leave, and zero-capacity utilization is undefined. The reporting UI has daily series, project/person tables, date-range filtering and CSV export.
 
 Frontend feature modules own their composers and storage I/O. The workspace shell only mounts My work, Timesheets and Reports. Current-role checks precede receipt replay; entry/sheet/request mutation, audit and durable invalidation stay in one PostgreSQL transaction. Live revisions refresh feature snapshots and planning capacity. No independent worker is needed for these synchronous workflows.
+
+## A1 workbook boundary
+
+[Implementation contract](a1-implementation.md) and [setup](import-setup.md) define supported layouts and bounds. Migration 0009 adds private staged imports, versioned sources and durable queue lanes/jobs. Parsing and model inference run in `apps/worker`; no network call spans a database transaction. API import endpoints are human-only; A0 agent capabilities remain unchanged. Publication uses normal typed planning commands under one organization/membership/source/import transaction and exact-retry receipt. Export uses the saved publication snapshot, immutable private output keys and a current-authority metadata commit. The UI is owned by `features/imports`; the shell only mounts it.
+
+This bounded implementation is for the initial 10–100-person adoption envelope. Per-tenant schedule writes still serialize, and bulk publication currently applies existing planning commands sequentially. Large-import latency, large-team scheduling, source/output retention cleanup and sustained queue throughput remain measured production gates.

@@ -158,3 +158,18 @@ impl From<Error> for kivo_agents::Error {
         }
     }
 }
+
+impl From<Error> for kivo_integrations::Error {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::Unauthorized | Error::Forbidden => Self::Forbidden,
+            Error::Conflict => Self::Conflict,
+            Error::NotFound => Self::NotFound,
+            Error::Invalid(m) => Self::Invalid(m),
+            Error::Database(e) => {
+                constraint(e);
+                Self::Unavailable
+            }
+        }
+    }
+}

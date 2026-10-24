@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["apps/api", "apps/migrator", "apps/realtime", "crates/*"]
+members = ["apps/api", "apps/migrator", "apps/realtime", "apps/worker", "crates/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -47,3 +47,12 @@ kivo-auth0 = { path = "crates/auth0" }
 kivo-realtime = { path = "crates/realtime" }
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = "0.10"
+
+kivo-integrations = { path = "crates/integrations" }
+kivo-jobs = { path = "crates/jobs" }
+kivo-workbook = { path = "crates/workbook" }
+kivo-import-inference = { path = "crates/import-inference" }
+csv = "1"
+calamine = { version = "0.35", features = ["dates"] }
+zip = { version = "7", default-features = false, features = ["deflate"] }
+quick-xml = "0.39"

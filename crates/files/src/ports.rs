@@ -87,3 +87,17 @@ pub trait ObjectStore: Send + Sync {
         filename: &str,
     ) -> impl Future<Output = Result<SignedRequest, Error>> + Send;
 }
+
+/// Worker byte I/O is separate from browser signing. Enforce configured bucket,
+/// expected metadata and bounded streaming; writes are immutable and retry-safe.
+pub trait ObjectBytes: Send + Sync {
+    fn read_bytes(&self, file: &File) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
+    fn write_bytes(
+        &self,
+        org: Uuid,
+        id: Uuid,
+        filename: &str,
+        content_type: &str,
+        bytes: Vec<u8>,
+    ) -> impl Future<Output = Result<File, Error>> + Send;
+}

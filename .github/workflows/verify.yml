@@ -1,13 +1,28 @@
 name: Verify
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_call:
+    inputs:
+      source_ref:
+        type: string
+        required: false
 jobs:
   contracts:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       CARGO_TARGET_DIR: ${{ github.workspace }}/target
       KIVO_LOAD_ENV: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      NEXT_PUBLIC_STORAGE_MODE: api
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -22,7 +37,20 @@ jobs:
       - run: cargo clippy --locked --workspace --all-targets -- -D warnings
       - run: cargo test --locked --workspace
       - run: npm test
+      - run: npm run test:deploy
+        env:
+          KIVO_COMPOSE_BINARY: docker
       - run: npm run build
       - run: npm run test:api
       - run: npm run test:providers
       - run: npm run test:shared
+      - run: npm run test:imports
+      - run: npm run test:web-auth
+      - name: Install pinned Caddy for HTTPS fixture
+        run: |
+          curl --fail --location --output /tmp/caddy.tar.gz https://github.com/caddyserver/caddy/releases/download/v2.11.7/caddy_2.11.7_linux_amd64.tar.gz
+          echo '727b91701a392de6ebc5027509f548bf39979e5216340d0faed8fa5e69c84f8b  /tmp/caddy.tar.gz' | sha256sum --check
+          tar -xzf /tmp/caddy.tar.gz -C /tmp caddy
+      - run: npm run test:self-hosted
+        env:
+          KIVO_CADDY_BINARY: /tmp/caddy

@@ -66,8 +66,14 @@ export function useLiveWorkspace({
           {},
         );
         if (closed) return;
+        const sameOrigin = new URL("/ws", window.location.origin);
+        sameOrigin.protocol =
+          window.location.protocol === "https:" ? "wss:" : "ws:";
         const endpoint =
-          process.env.NEXT_PUBLIC_REALTIME_URL ?? "ws://127.0.0.1:4001/ws";
+          process.env.NEXT_PUBLIC_REALTIME_URL ??
+          (process.env.NODE_ENV === "production"
+            ? sameOrigin.href
+            : "ws://127.0.0.1:4001/ws");
         socket = new WebSocket(endpoint);
         const timeout = setTimeout(() => socket?.close(), 10000);
         socket.onopen = () =>

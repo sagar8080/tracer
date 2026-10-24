@@ -1,13 +1,15 @@
 // Local OIDC fixture with real RSA signatures, PKCE and one-use authorization codes.
 // It never connects to Auth0 and accepts only the isolated test application's URLs.
 import { createServer } from "node:http";
+import { createServer as createTlsServer } from "node:https";
 import { generateKeyPairSync, sign, createHash, randomUUID } from "node:crypto";
 export async function auth0Fixture({
   webOrigin = "http://127.0.0.1:3000",
+  tls,
 } = {}) {
-  if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(webOrigin))
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost):\d+$/.test(webOrigin))
     throw Error("Fixture origin must be loopback");
-  const issuer = "http://localhost:4455/",
+  const issuer = tls ? "https://auth.kivo.test/" : "http://localhost:4455/",
     audience = "https://kivo.test/api",
     clientId = "kivo-fixture-client",
     clientSecret = "kivo-fixture-secret";
@@ -29,7 +31,7 @@ export async function auth0Fixture({
     previous;
   const codes = new Map(),
     refreshes = new Map();
-  const state = { outage: false, jwksRequests: 0 };
+  const state = { outage: false, jwksRequests: 0, tokenRequests: 0 };
   const users = {
     alice: "alice@studio.test",
     bob: "bob@studio.test",
@@ -74,7 +76,8 @@ export async function auth0Fixture({
     });
     res.end(JSON.stringify(data));
   }
-  const server = createServer(async (req, res) => {
+  const serve = tls ? (handler) => createTlsServer(tls, handler) : createServer;
+  const server = serve(async (req, res) => {
     const url = new URL(req.url, issuer);
     if (url.pathname === "/.well-known/jwks.json") {
       state.jwksRequests++;
@@ -142,6 +145,7 @@ export async function auth0Fixture({
       return;
     }
     if (url.pathname === "/oauth/token") {
+      state.tokenRequests++;
       let body = "";
       for await (const chunk of req) body += chunk;
       const params = new URLSearchParams(body);

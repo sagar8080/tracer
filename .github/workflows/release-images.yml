@@ -1,0 +1,167 @@
+name: Build pilot images
+on:
+  workflow_dispatch:
+    inputs:
+      commit:
+        description: Full 40-character commit SHA to test and publish
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: pilot-images-${{ inputs.commit }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      commit: ${{ steps.check.outputs.commit }}
+    steps:
+      - id: check
+        env:
+          RELEASE_COMMIT: ${{ inputs.commit }}
+        run: |
+          [[ "$RELEASE_COMMIT" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          echo "commit=$RELEASE_COMMIT" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: release
+    uses: ./.github/workflows/verify.yml
+    with:
+      source_ref: ${{ needs.release.outputs.commit }}
+  images:
+    needs: [release, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release.outputs.commit }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "prefix=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.web
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.names.outputs.prefix }}-web:${{ needs.release.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,mode=max,scope=web
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.rust
+          target: api
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.names.outputs.prefix }}-api:${{ needs.release.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+          cache-from: type=gha,scope=rust
+          cache-to: type=gha,mode=max,scope=rust
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.rust
+          target: realtime
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.names.outputs.prefix }}-realtime:${{ needs.release.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+          cache-from: type=gha,scope=rust
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.rust
+          target: worker
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.names.outputs.prefix }}-worker:${{ needs.release.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+          cache-from: type=gha,scope=rust
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/Dockerfile.rust
+          target: migrator
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.names.outputs.prefix }}-migrator:${{ needs.release.outputs.commit }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.release.outputs.commit }}
+          cache-from: type=gha,scope=rust
+      - name: Check Linux images and Caddy configuration
+        env:
+          PREFIX: ${{ steps.names.outputs.prefix }}
+          COMMIT: ${{ needs.release.outputs.commit }}
+        run: |
+          for service in api realtime worker migrator; do
+            image="$PREFIX-$service:$COMMIT"
+            test "$(docker inspect --format '{{.Config.User}}' "$image")" = '10001:10001'
+            if docker run --rm "$image" > /tmp/startup.txt 2>&1; then exit 1; fi
+            grep -Eq 'is required|requires KIVO_ALLOW_DEV_AUTH' /tmp/startup.txt
+          done
+          SITE_HOST=kivolabs.pro ACME_EMAIL=ops@kivolabs.pro docker run --rm \
+            -e SITE_HOST -e ACME_EMAIL \
+            -v "$PWD/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            --entrypoint caddy caddy:2.11.7-alpine validate --config /etc/caddy/Caddyfile
+      - name: Check standalone web image
+        env:
+          PREFIX: ${{ steps.names.outputs.prefix }}
+          COMMIT: ${{ needs.release.outputs.commit }}
+        run: |
+          test "$(docker inspect --format '{{.Config.User}}' "$PREFIX-web:$COMMIT")" = node
+          docker run -d --name kivo-web-image-qa \
+            -e KIVO_AUTH_MODE=auth0 -e NEXT_PUBLIC_STORAGE_MODE=api \
+            -e APP_BASE_URL=https://kivolabs.pro -e AUTH0_DOMAIN=auth.fixture.test \
+            -e AUTH0_CLIENT_ID=fixture -e AUTH0_CLIENT_SECRET=fixture-only \
+            -e AUTH0_AUDIENCE=https://kivo.test/api \
+            -e AUTH0_SECRET=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb \
+            "$PREFIX-web:$COMMIT"
+          for attempt in $(seq 1 30); do
+            if docker exec kivo-web-image-qa node -e "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))"; then break; fi
+            sleep 1
+          done
+          docker exec kivo-web-image-qa node -e "(async()=>{for(const [path,status] of [['/',200],['/health',200],['/import-examples/allocations.csv',200],['/api/workspace',401]]){const r=await fetch('http://127.0.0.1:3000'+path);if(r.status!==status)throw Error(path)}})().catch(()=>process.exit(1))"
+          docker rm -f kivo-web-image-qa
+      - name: Publish checked images
+        env:
+          PREFIX: ${{ steps.names.outputs.prefix }}
+          COMMIT: ${{ needs.release.outputs.commit }}
+        run: |
+          for service in web api realtime worker migrator; do
+            docker push "$PREFIX-$service:$COMMIT"
+          done
+      - name: Release coordinates
+        env:
+          PREFIX: ${{ steps.names.outputs.prefix }}
+          COMMIT: ${{ needs.release.outputs.commit }}
+        run: |
+          echo "KIVO_IMAGE_PREFIX=$PREFIX" >> "$GITHUB_STEP_SUMMARY"
+          echo "KIVO_RELEASE=$COMMIT" >> "$GITHUB_STEP_SUMMARY"
+          echo "Images only; no server deployment or migration was run." >> "$GITHUB_STEP_SUMMARY"

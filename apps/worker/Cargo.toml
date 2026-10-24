@@ -1,0 +1,25 @@
+[package]
+name = "kivo-worker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+kivo-integrations.workspace = true
+kivo-jobs.workspace = true
+kivo-workbook.workspace = true
+kivo-import-inference.workspace = true
+kivo-postgres.workspace = true
+kivo-object-storage-s3.workspace = true
+kivo-files.workspace = true
+kivo-tenancy.workspace = true
+tokio.workspace = true
+axum.workspace = true
+dotenvy.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+url.workspace = true
+
+[lints]
+workspace = true

@@ -163,3 +163,17 @@ impl From<kivo_agents::Error> for ApiError {
         }
     }
 }
+
+impl From<kivo_integrations::Error> for ApiError {
+    fn from(e: kivo_integrations::Error) -> Self {
+        match e {
+            kivo_integrations::Error::Forbidden => Self::Forbidden,
+            kivo_integrations::Error::Conflict => Self::Conflict,
+            kivo_integrations::Error::NotFound => Self::NotFound,
+            kivo_integrations::Error::Invalid(m) => Self::Invalid(m),
+            kivo_integrations::Error::Unavailable => {
+                Self::Unavailable("Import service unavailable")
+            }
+        }
+    }
+}

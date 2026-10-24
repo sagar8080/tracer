@@ -201,11 +201,22 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(%bind,"Realtime listening");
     axum::serve(listener, router)
         .with_graceful_shutdown(async move {
-            let _ = tokio::signal::ctrl_c().await;
+            shutdown_signal().await;
             let _ = stop_tx.send(true);
         })
         .await?;
     poll.abort();
     db.close().await;
     Ok(())
+}
+
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    if let Ok(mut terminate) =
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+    {
+        tokio::select! { _ = tokio::signal::ctrl_c() => (), _ = terminate.recv() => () }
+        return;
+    }
+    let _ = tokio::signal::ctrl_c().await;
 }

@@ -2,6 +2,8 @@
 
 Kivo uses Auth0 for sign-in and encrypted browser sessions. Kivo stores organizations, invitations and roles in Neon PostgreSQL. Auth0 Organizations and Auth0 role provisioning are not required. The API verifies RS256 access tokens independently; OAuth tokens stay in the Next.js server session, outside browser JavaScript.
 
+For the proposed `kivolabs.pro` pilot, use the exact production settings and credential boundaries in [the deployment runbook](deployment.md#auth0-production-application). Keep the API audience and existing signed email claim namespace stable when buying a domain. Local development environment files are not copied into deployment images.
+
 ## 1. Configure Auth0
 
 Create a **Regular Web Application** for Kivo and an **API** with an identifier such as `https://api.kivo.app`. Select **RS256** for the API's signing algorithm. The identifier is an audience string, not a URL that Kivo needs to serve.
@@ -16,7 +18,7 @@ For local development, use these exact application URLs consistently:
 
 The public homepage is `/`; the authenticated workspace is `/app`. Login/signup defaults to `/app`, while invitation sign-in preserves `/join` until acceptance. The callback remains `/auth/callback`, so this route split requires no new Auth0 application settings.
 
-Enable your desired login connection for this application. Enable the Refresh Token grant for the application and **Allow Offline Access** for the API; Kivo requests `openid profile email offline_access`. Configure refresh-token rotation in Auth0. Use HTTPS versions of these URLs for deployment. Do not mix `localhost` and `127.0.0.1` in one session.
+Enable your desired login connection for this application. Enable the Refresh Token grant for the application and **Allow Offline Access** for the API; Kivo requests `openid profile email offline_access`. Configure refresh-token rotation in Auth0. Use HTTPS versions of these URLs for deployment. Kivo canonicalizes local host aliases to the configured APP_BASE_URL before login so transaction cookies and callbacks use one origin.
 
 Invitations require a verified email address. Add and deploy a **Post Login Action**, then attach it to the Login flow:
 
@@ -144,3 +146,11 @@ The last owner cannot be demoted or removed. My work and self-service resolve th
 Live Auth0 tenant configuration and sign-in must be checked after your credentials and Action are configured. Local fixture tests do not establish a live Auth0 connection or a deployed system.
 
 Primary references: [Auth0 Next.js SDK](https://auth0.github.io/nextjs-auth0/), [v4 configuration](https://github.com/auth0/nextjs-auth0/blob/main/V4_MIGRATION_GUIDE.md), [API access tokens](https://auth0.com/docs/secure/tokens/access-tokens/get-access-tokens), [custom claims](https://auth0.com/docs/secure/tokens/json-web-tokens/create-custom-claims).
+
+## Recovering a local sign-in
+
+If a callback says the state parameter is invalid, the browser may have started on `localhost` while the configured callback uses `127.0.0.1`, or the callback may be expired/already consumed. Kivo now converges local GET navigation to APP_BASE_URL before creating the SDK transaction cookie. Wrong-origin writes are rejected; cookies and authorization codes are never copied across hosts. A route handler emits the absolute local redirect because Next.js Proxy relativizes redirects against its bind hostname.
+
+Missing/invalid callback state is still rejected by the Auth0 SDK, then sent to a retry page. A valid existing session can resume `/app`; otherwise use **Sign in again** to start a fresh transaction. This recovery does not create a session from rejected callback parameters. Invitation logins retain `/join` as the return path. Keep AUTH0_SECRET stable and use the configured origin in Auth0's allowed URLs; no dashboard changes are required for this fix.
+
+`npm run test:web-auth` exercises the real Next.js/Auth0 SDK against an isolated local OIDC issuer, including normal/parallel login, missing cookies/state, consumed callbacks, redirect hosts, invite return paths and mutation-origin rejection. `KIVO_AUTH_BROWSER_QA=1 npm run test:web-auth` keeps its disposable frontend on 3002 for browser inspection until Ctrl+C. It does not connect to your Auth0 tenant or copy hosted environment files.

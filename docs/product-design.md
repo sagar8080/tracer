@@ -1,6 +1,6 @@
 # Kivo product design and iteration plan
 
-Design version 3, October 13, 2026. Baseline commit: `1827dec`; current A0 implementation/evidence is recorded below and in [validation](validation.md). This plan covers Float's documented feature set and Kivo's shared workflows for humans and agents. It defines early adoption, capability expansion, ownership boundaries and release gates. Future cycles are designed scope, not completed functionality or delivery-date commitments.
+Design version 3, October 13, 2026. Baseline commit: `1827dec`; current A0/A1 implementation/evidence is recorded below and in [validation](validation.md). This plan covers Float's documented feature set and Kivo's shared workflows for humans and agents. It defines early adoption, capability expansion, ownership boundaries and release gates. Future cycles are designed scope, not completed functionality or delivery-date commitments.
 
 Kivo should let humans and agents scope work, staff it, adjust the plan, capture delivery and understand the financial result in one coherent operational system. Agents can run continuously and execute within an explicit delegation, with people resolving exceptions and retaining control. Functional Float parity remains the coverage requirement. The competitive objective is less work to maintain a trustworthy plan.
 
@@ -369,7 +369,7 @@ An implementation slice starts with a short contract: parent cycle and feature I
 
 Before extending a cycle, finish its usable slice or record why its gate failed. Do not substitute visual polish for missing behavior, or a new crate for a defined contract. Small logical commits should separate cohesive domain/schema work, adapters/API, feature UI and meaningful validation while keeping each integrated change buildable.
 
-Maintain one active implementation cycle by default. A0 is built and contract-tested; C0 performance sizing remains outstanding. Next is A1's supported workbook intake/reconciliation slice, with customer fixtures and baseline measurements before adoption claims. A2/A3 then establish durable observation and the first delegated live planning outcome; A4 adds mixed delivery when its workflow is validated. C1–C14 retain their feature and scale obligations. Change ordering only after dependencies, gates and the register are updated together.
+Maintain one active implementation milestone by default. A0 and A1's supported workbook intake/reconciliation slice are built and contract-tested; A1 customer fixtures/baseline measurements and C0 performance sizing remain outstanding. The active milestone is now the C0 hosted pilot, before A2, with canonical HTTPS/Auth0, reproducible releases and operational checks before customer invitations. A2/A3 then establish durable observation and the first delegated live planning outcome; A4 adds mixed delivery when its workflow is validated. C1–C14 retain their feature and scale obligations. Change ordering only after dependencies, gates and the register are updated together.
 
 | Decision | State | Resolution point |
 | --- | --- | --- |
@@ -386,3 +386,15 @@ Maintain one active implementation cycle by default. A0 is built and contract-te
 | Native client framework | Open implementation choice | C14 measured mobile requirements |
 
 The remaining decisions are explicitly assigned to a cycle; they do not justify unrelated feature work or an unsupported parity claim.
+
+## A1 development handoff
+
+The supported workbook adoption slice is implemented under AGT09–AGT10, EXT01 and DIF06: private upload, source lineage, deterministic/optional model mapping, reviewed identities/calendars, dry-run reconciliation, atomic publication, source refresh and pinned CSV export. See [A1 implementation](a1-implementation.md), [setup](import-setup.md) and executed [validation](validation.md). There is no autonomous schedule publication. Customer fixtures for both layouts, mapping-correction rates, first-result timing and live-provider evaluation are still required to close the A1 customer gate. Full EXT01 actuals migration, cross-tool sync and reversible post-publication compensation remain C9/C2 work.
+
+## C0 login regression — local origin continuity
+
+GOV01/OPS05: login started on a local host alias must converge to the configured application origin before an SDK transaction cookie is created. Missing, expired or consumed callback state must remain rejected and provide a retry path; successful login and invitation return paths remain intact. `features/identity` owns pure navigation/recovery UI; the server Auth0 factory owns SDK callback composition and Proxy/route handlers own transport. No schema, Rust process or authorization-policy changes are involved. Checks cover cookie-host continuity, PKCE/state rejection without token exchange, existing-session recovery, parallel login and cross-origin write denial.
+
+## C0 deployment milestone — hosted pilot
+
+OPS01–OPS03/GOV01: prepare a reproducible single-server pilot before A2. A visitor opens the public page, signs in on one canonical HTTPS origin, joins a workspace and uses scheduling/imports with private files and live updates. `deploy/` owns container/routing/release configuration; existing web/API/realtime/worker/migrator processes retain their capability and credential boundaries. There is no schema or business transaction change. One migration process runs before runtime services; no API replica migrates. Release images are tied to one Git commit, with separate runtime credentials, loopback worker health, bounded logs and explicit recovery instructions. Container HTTP is allowed only for an explicitly configured internal API origin; public traffic uses HTTPS/WSS. Checks cover standalone web assets, anonymous denial, redirects/cookies, routing and WebSocket upgrades, release prerequisites, SIGTERM, and configuration isolation. Actual domain provisioning, hosted login/workflow smoke, restore rehearsal, monitoring delivery and saturation remain release gates, not claims established by local packaging tests. The public landing page may be exposed first; pilot access must be restricted through Auth0 before customer workspace use.

@@ -1,0 +1,338 @@
+.imports {
+  padding: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+  width: 100%;
+  overflow: auto;
+}
+.imports label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.imports select,
+.imports input[type="number"] {
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  color: var(--ink);
+  padding: 9px 10px;
+  width: 100%;
+  min-width: 0;
+}
+.import-upload {
+  margin: 28px 0;
+}
+.import-drop {
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  gap: 12px !important;
+  padding: 36px 20px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 8px;
+  background: var(--paper);
+  transition: background 120ms;
+}
+.import-drop:hover,
+.import-drop:focus-within {
+  background: var(--panel);
+  border-color: var(--accent);
+}
+.import-drop span {
+  font-size: 16px;
+  color: var(--ink);
+}
+.import-drop input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  cursor: pointer;
+}
+.import-drop small {
+  font-size: 12px;
+}
+.import-upload-options,
+.import-properties {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin: 24px 0;
+}
+.import-footer {
+  display: flex;
+  gap: 20px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+}
+.import-footer > span {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 480px;
+}
+.import-check {
+  flex-direction: row !important;
+  align-items: flex-start;
+  gap: 10px !important;
+  line-height: 1.6;
+  margin: 18px 0;
+}
+.import-check input {
+  flex-shrink: 0;
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.import-history-row {
+  width: 100%;
+  display: flex;
+  text-align: left;
+  gap: 16px;
+  padding: 18px 0;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  transition: background 120ms;
+}
+.import-history-row > span:first-of-type {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.import-history-row strong {
+  font-weight: 500;
+}
+.import-history-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.import-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+.import-history-row:hover {
+  background: var(--panel);
+}
+.import-format {
+  color: var(--muted);
+  margin-bottom: 36px;
+  line-height: 1.7;
+}
+.import-format a {
+  display: inline-block;
+  margin: 12px 24px 0 0;
+  color: var(--accent);
+}
+.import-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+.import-toolbar > span {
+  flex: 1;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.import-progress {
+  display: flex;
+  gap: 28px;
+  padding: 24px 0 32px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+.import-progress span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.import-progress .current {
+  color: var(--ink);
+}
+.import-progress .complete {
+  color: var(--accent);
+}
+.import-pending {
+  padding: 48px 0;
+  color: var(--muted);
+}
+.import-pending h2 {
+  color: var(--ink);
+  font-weight: 450;
+  font-size: 20px;
+  margin: 14px 0;
+}
+.import-pending p {
+  line-height: 1.7;
+}
+.import-identities {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 24px 0;
+}
+.import-working {
+  border: 0;
+  padding: 16px 0 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+.import-working legend {
+  font-size: 11px;
+  color: var(--muted);
+  padding-top: 16px;
+}
+.import-working input {
+  padding: 8px 4px !important;
+}
+.import-working label {
+  font-size: 10px;
+}
+.import-weeks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: 0;
+  padding: 0;
+  margin: 24px 0;
+}
+.import-weeks legend {
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.import-weeks label {
+  flex-direction: row;
+}
+.import-table-scroll {
+  overflow: auto;
+  max-width: 100%;
+}
+.imports table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.imports th {
+  text-align: left;
+  color: var(--muted);
+  font-weight: 450;
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--line-strong);
+}
+.imports td {
+  padding: 14px 16px 14px 0;
+  border-bottom: 1px solid var(--line);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+}
+.import-sample {
+  color: var(--muted);
+  margin-bottom: 32px;
+}
+.import-sample summary {
+  margin: 20px 0;
+  cursor: pointer;
+}
+.import-findings {
+  padding: 4px 0 20px;
+  line-height: 1.7;
+}
+.import-warning {
+  color: var(--warning);
+}
+.import-cell {
+  font-size: 11px;
+}
+.import-change {
+  font-size: 11px;
+}
+.import-change.add {
+  color: var(--accent);
+}
+.import-change.remove {
+  color: var(--danger);
+}
+.import-change.update {
+  color: var(--warning);
+}
+.import-secondary {
+  display: flex;
+  gap: 24px;
+  margin: 28px 0;
+}
+.import-published {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  line-height: 1.6;
+}
+.import-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin: 20px 0;
+}
+@media (max-width: 700px) {
+  .imports {
+    padding: 20px 14px;
+  }
+  .import-properties,
+  .import-upload-options,
+  .import-identities {
+    grid-template-columns: 1fr;
+  }
+  .import-progress {
+    gap: 14px;
+    font-size: 10px;
+    flex-wrap: wrap;
+  }
+  .import-footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .import-footer button {
+    width: 100%;
+    justify-content: center;
+  }
+  .import-secondary {
+    flex-wrap: wrap;
+  }
+  .import-toolbar {
+    gap: 8px;
+  }
+  .import-toolbar > span {
+    max-width: 160px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .imports * {
+    transition: none !important;
+  }
+}
+
+.imports button.secondary,
+.imports button.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.import-drop span {
+  overflow-wrap: anywhere;
+}
+.import-identity,
+.import-working {
+  min-width: 0;
+}

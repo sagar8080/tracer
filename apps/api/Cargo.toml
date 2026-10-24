@@ -35,3 +35,6 @@ kivo-realtime.workspace = true
 kivo-auth0.workspace = true
 chrono.workspace = true
 serde.workspace = true
+
+kivo-integrations.workspace = true
+kivo-import-inference.workspace = true

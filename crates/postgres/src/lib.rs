@@ -6,6 +6,8 @@ mod error;
 mod events;
 mod files;
 mod identity;
+mod imports;
+mod jobs;
 mod leave_requests;
 mod onboarding;
 mod planning;

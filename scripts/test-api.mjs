@@ -20,7 +20,7 @@ const target = join(root, "target");
 const testEnv = Object.fromEntries(
   Object.entries(process.env).filter(
     ([key]) =>
-      !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(
+      !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|OPENAI_|ANTHROPIC_|GEMINI_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(
         key,
       ),
   ),

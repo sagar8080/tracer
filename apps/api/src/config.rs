@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 // Deliberately no Debug: these structs contain database and provider credentials.
 pub struct Config {
+    pub inference: kivo_import_inference::Config,
     pub auth0: Option<kivo_auth0::Config>,
     pub bind: String,
     pub web_origin: String,
@@ -142,6 +143,7 @@ impl Config {
             "KIVO_WEB_ORIGIN must be an origin without a path"
         );
         Ok(Self {
+            inference: kivo_import_inference::Config::from_lookup(&get)?,
             auth0,
             bind,
             web_origin: origin.origin().ascii_serialization(),

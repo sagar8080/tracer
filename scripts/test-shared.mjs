@@ -12,12 +12,13 @@ import { verifySelfService } from "./test-self-service.mjs";
 import { verifyOnboarding } from "./test-onboarding.mjs";
 import { auth0Fixture } from "./auth0-fixture.mjs";
 import { runMigrator } from "./test-migrations.mjs";
+import { verifyShutdown } from "./test-process-shutdown.mjs";
 const root = fileURLToPath(new URL("../", import.meta.url)),
   target = join(root, "target");
 const baseEnv = Object.fromEntries(
   Object.entries(process.env).filter(
     ([key]) =>
-      !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(
+      !/^(AWS_|UPSTASH_|KIVO_|AUTH0_|OPENAI_|ANTHROPIC_|GEMINI_|APP_BASE_URL|NEXT_PUBLIC_|DATABASE_|PG)/.test(
         key,
       ),
   ),
@@ -569,6 +570,19 @@ try {
     client,
   });
   await verifyAgents({ expect, request, save, client, fixture });
+  assert.equal(
+    (await fetch("http://127.0.0.1:4100/internal/ready")).status,
+    200,
+  );
+  assert.equal((await fetch("http://127.0.0.1:4100/ready")).status, 401);
+  if (process.env.KIVO_BROWSER_QA !== "1") {
+    for (const socket of sockets) socket.terminate();
+    await verifyShutdown(live);
+    await verifyShutdown(api);
+    console.log(
+      "PASS: authenticated readiness preserved, loopback dependency probe and clean API/realtime SIGTERM exits.",
+    );
+  }
   // Leave a useful fixture for manual desktop/mobile verification when requested.
   if (process.env.KIVO_BROWSER_QA === "1") {
     await invite(org.id, "grace", "viewer");

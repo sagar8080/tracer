@@ -3,7 +3,7 @@ use aws_sdk_s3::{
     config::{BehaviorVersion, Region, retry::RetryConfig, timeout::TimeoutConfig},
     presigning::{PresignedRequest, PresigningConfig},
 };
-use kivo_files::{Error, ObjectLocation, ObjectStore, SignedRequest};
+use kivo_files::{Error, File, ObjectBytes, ObjectLocation, ObjectStore, SignedRequest};
 use std::time::Duration;
 use url::Url;
 use uuid::Uuid;
@@ -157,6 +157,98 @@ fn signed(request: PresignedRequest) -> SignedRequest {
             .map(|(name, value)| (name.to_owned(), value.to_owned()))
             .collect(),
         expires_in_seconds: URL_TTL,
+    }
+}
+
+impl ObjectBytes for Storage {
+    async fn read_bytes(&self, file: &File) -> Result<Vec<u8>, Error> {
+        if file.bucket != self.bucket
+            || file.object_key != self.key(file.org_id, file.id)
+            || !(1..=kivo_files::MAX_FILE_BYTES).contains(&file.size_bytes)
+        {
+            return Err(Error::Invalid("Invalid private source location"));
+        }
+        let mut object = self
+            .client
+            .get_object()
+            .bucket(&self.bucket)
+            .key(&file.object_key)
+            .send()
+            .await
+            .map_err(|_| Error::Unavailable("Could not read private source"))?;
+        if object.content_length() != Some(file.size_bytes)
+            || object.content_type() != Some(file.content_type.as_str())
+        {
+            return Err(Error::Invalid("Source metadata changed"));
+        }
+        let mut bytes = Vec::new();
+        while let Some(chunk) = object.body.next().await {
+            let chunk = chunk.map_err(|_| Error::Unavailable("Could not read private source"))?;
+            if bytes.len() + chunk.len() > file.size_bytes as usize {
+                return Err(Error::Invalid("Source size exceeded its reservation"));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        if bytes.len() != file.size_bytes as usize {
+            return Err(Error::Invalid("Source is incomplete"));
+        }
+        Ok(bytes)
+    }
+    async fn write_bytes(
+        &self,
+        org: Uuid,
+        id: Uuid,
+        filename: &str,
+        content_type: &str,
+        bytes: Vec<u8>,
+    ) -> Result<File, Error> {
+        let upload = kivo_files::Upload {
+            filename: filename.into(),
+            content_type: content_type.into(),
+            size_bytes: bytes.len() as i64,
+        };
+        upload.validate()?;
+        let key = self.key(org, id);
+        let result = self
+            .client
+            .put_object()
+            .bucket(&self.bucket)
+            .key(&key)
+            .content_type(content_type)
+            .content_length(bytes.len() as i64)
+            .if_none_match("*")
+            .server_side_encryption(aws_sdk_s3::types::ServerSideEncryption::Aes256)
+            .body(aws_sdk_s3::primitives::ByteStream::from(bytes.clone()))
+            .send()
+            .await;
+        if result.is_err() {
+            // Ambiguous upload/crash recovery: an immutable key must contain exact bytes.
+            let file = File {
+                id,
+                org_id: org,
+                filename: filename.into(),
+                content_type: content_type.into(),
+                size_bytes: bytes.len() as i64,
+                status: "ready".into(),
+                bucket: self.bucket.clone(),
+                object_key: key.clone(),
+            };
+            if self.read_bytes(&file).await? != bytes {
+                return Err(Error::Invalid(
+                    "Export key already contains different bytes",
+                ));
+            }
+        }
+        Ok(File {
+            id,
+            org_id: org,
+            filename: filename.into(),
+            content_type: content_type.into(),
+            size_bytes: bytes.len() as i64,
+            status: "ready".into(),
+            bucket: self.bucket.clone(),
+            object_key: key,
+        })
     }
 }
 
