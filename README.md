@@ -1,8 +1,8 @@
-# Kivo
+# Tracer (previously Kivo)
 
 **Make room for better work.**
 
-Kivo brings people, projects and team capacity into one planning workspace. Schedule work on a shared timeline, see where capacity is tight, compare plans with recorded time, and bring supported spreadsheets into a reviewed plan.
+Tracer brings people, projects and team capacity into one planning workspace. Schedule work on a shared timeline, see where capacity is tight, compare plans with recorded time, and bring supported spreadsheets into a reviewed plan.
 
 **Early access:** scheduling, capacity, shared member workflows, scoped agent proposals and reviewed workbook onboarding are implemented development features. Hosted pilot preparation is available; production operations and scale validation remain open. See [validation evidence](docs/validation.md) for what has been exercised.
 
